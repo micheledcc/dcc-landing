@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await sql`
-    SELECT id, email, password_hash, name FROM admins WHERE email = ${email}
+    SELECT id, email, password_hash, name, COALESCE(role, 'member') as role FROM admins WHERE email = ${email}
   `;
 
   const admin = result.rows[0];
@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     sub: admin.id,
     email: admin.email,
     name: admin.name,
+    role: admin.role || "member",
   });
 
   const res = NextResponse.json({ ok: true });

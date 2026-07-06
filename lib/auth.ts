@@ -11,6 +11,7 @@ export interface AuthPayload {
   sub: string;
   email: string;
   name: string;
+  role: string;
 }
 
 export async function hashPassword(plain: string) {

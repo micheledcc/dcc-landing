@@ -1,5 +1,7 @@
-import { getShareLink } from "@/lib/share";
+import { getShareLink, applyRowFilters } from "@/lib/share";
 import { readPipeline } from "@/lib/sheets";
+import { logView } from "@/lib/analytics";
+import { headers } from "next/headers";
 
 export default async function ViewPage({
   params,
@@ -41,10 +43,21 @@ export default async function ViewPage({
     );
   }
 
+  // Log the view
+  const hdrs = await headers();
+  const ua = hdrs.get("user-agent");
+  const ref = hdrs.get("referer");
+  logView(link.id, ua, ref).catch(() => {}); // fire and forget
+
   const visibleFields: string[] =
     typeof link.visible_fields === "string"
       ? JSON.parse(link.visible_fields)
       : link.visible_fields;
+
+  const rowFilters =
+    typeof link.row_filters === "string"
+      ? JSON.parse(link.row_filters)
+      : link.row_filters || [];
 
   let data: { headers: string[]; rows: Record<string, string>[] };
   try {
@@ -60,6 +73,8 @@ export default async function ViewPage({
   const filteredHeaders = data.headers.filter((h) =>
     visibleFields.includes(h)
   );
+
+  const filteredRows = applyRowFilters(data.rows, rowFilters);
 
   return (
     <ViewShell>
@@ -82,7 +97,7 @@ export default async function ViewPage({
           className="text-[11px] text-[#5d6168]"
           style={{ fontFamily: "'IBM Plex Mono', monospace" }}
         >
-          {data.rows.length} {data.rows.length === 1 ? "row" : "rows"}
+          {filteredRows.length} {filteredRows.length === 1 ? "row" : "rows"}
         </span>
       </div>
 
@@ -102,11 +117,8 @@ export default async function ViewPage({
             </tr>
           </thead>
           <tbody>
-            {data.rows.map((row, i) => (
-              <tr
-                key={i}
-                className="border-b border-black/8"
-              >
+            {filteredRows.map((row, i) => (
+              <tr key={i} className="border-b border-black/8">
                 {filteredHeaders.map((h) => (
                   <td
                     key={h}

@@ -39,6 +39,14 @@ export default async function DashboardLayout({
               >
                 Share Links
               </Link>
+              {auth?.role === "owner" && (
+                <Link
+                  href="/dashboard/team"
+                  className="font-['IBM_Plex_Mono',monospace] text-[11px] uppercase tracking-wider text-[#5d6168] no-underline hover:text-[#17191c]"
+                >
+                  Team
+                </Link>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-4">
