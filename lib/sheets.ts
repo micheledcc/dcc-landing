@@ -1,17 +1,19 @@
 import { google } from "googleapis";
 
 function getAuth() {
-  const key = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  if (!key) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY not set");
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-  const credentials = JSON.parse(
-    Buffer.from(key, "base64").toString("utf-8")
-  );
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error(
+      "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN must be set"
+    );
+  }
 
-  return new google.auth.GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
+  const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2.setCredentials({ refresh_token: refreshToken });
+  return oauth2;
 }
 
 function getSheetId() {
