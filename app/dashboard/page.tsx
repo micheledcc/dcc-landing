@@ -1,6 +1,8 @@
 import { getAuth } from "@/lib/auth";
 import { readPipeline } from "@/lib/sheets";
-import { PipelineTable } from "./pipeline-table";
+import { DashboardView } from "./dashboard-view";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const auth = await getAuth();
@@ -20,7 +22,7 @@ export default async function DashboardPage() {
           <p className="font-medium">Could not load pipeline data</p>
           <p className="mt-1 text-red-600">{msg}</p>
           <p className="mt-3 text-xs text-red-500">
-            Check that GOOGLE_SERVICE_ACCOUNT_KEY, GOOGLE_SHEET_ID, and
+            Check that GOOGLE_CLIENT_ID, GOOGLE_SHEET_ID, and
             GOOGLE_SHEET_RANGE are set correctly.
           </p>
         </div>
@@ -28,17 +30,5 @@ export default async function DashboardPage() {
     );
   }
 
-  return (
-    <div>
-      <div className="mb-6 flex items-end justify-between">
-        <h1 className="font-['Spectral',Georgia,serif] text-3xl font-light">
-          Investor Pipeline
-        </h1>
-        <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#8a6d40]">
-          {data.rows.length} {data.rows.length === 1 ? "row" : "rows"}
-        </span>
-      </div>
-      <PipelineTable headers={data.headers} initialRows={data.rows} />
-    </div>
-  );
+  return <DashboardView headers={data.headers} rows={data.rows} />;
 }

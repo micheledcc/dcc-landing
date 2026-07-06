@@ -23,7 +23,12 @@ function getSheetId() {
 }
 
 function getRange() {
-  return process.env.GOOGLE_SHEET_RANGE || "Sheet1";
+  const range = process.env.GOOGLE_SHEET_RANGE || "Sheet1";
+  // Quote sheet names with spaces for the API
+  if (range.includes(" ") && !range.startsWith("'")) {
+    return `'${range}'`;
+  }
+  return range;
 }
 
 export async function readPipeline(): Promise<{
