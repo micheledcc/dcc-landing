@@ -18,7 +18,7 @@ export async function createShareLink(params: {
   const result = await sql`
     INSERT INTO share_links (token, label, created_by_id, expires_at, visible_fields)
     VALUES (${token}, ${params.label}, ${params.createdById}, ${expiresAt.toISOString()}, ${JSON.stringify(params.visibleFields)})
-    RETURNING id, token, label, expires_at, visible_fields, created_at
+    RETURNING id, token, label, expires_at, visible_fields, is_active, created_at
   `;
 
   return result.rows[0];

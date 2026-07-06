@@ -113,13 +113,24 @@ export function DashboardView({
   return (
     <div>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-['Spectral',Georgia,serif] text-3xl font-light">
-          Investor Pipeline
-        </h1>
-        <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#8a6d40] uppercase tracking-wider">
-          Master Commitments &middot; {rows.length} investors
-        </p>
+      <div className="mb-8 flex items-end justify-between">
+        <div>
+          <h1 className="font-['Spectral',Georgia,serif] text-3xl font-light">
+            Investor Pipeline
+          </h1>
+          <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#8a6d40] uppercase tracking-wider">
+            Master Commitments &middot; {rows.length} investors
+          </p>
+        </div>
+        <a
+          href="https://docs.google.com/spreadsheets/d/1HIqULY2hBQI8DhRDgNWQgH5pAPluJVsogkP5qbIC560/edit"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 border border-black/12 bg-white px-3 py-2 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#3a3d42] no-underline hover:border-black/25"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Open in Google Sheets
+        </a>
       </div>
 
       {/* Summary Cards */}
