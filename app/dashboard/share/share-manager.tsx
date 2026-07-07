@@ -31,11 +31,16 @@ export function ShareManager({
   const [expiresInDays, setExpiresInDays] = useState(14);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [rowFilters, setRowFilters] = useState<RowFilter[]>([]);
+  const [allowedEmails, setAllowedEmails] = useState("");
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   async function handleCreate() {
     setSaving(true);
+    const emails = allowedEmails
+      .split(/[\n,]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e.includes("@"));
     const res = await fetch("/api/share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -44,6 +49,7 @@ export function ShareManager({
         expiresInDays,
         visibleFields: selectedFields,
         rowFilters,
+        allowedEmails: emails.length > 0 ? emails : undefined,
       }),
     });
     if (res.ok) {
@@ -53,6 +59,7 @@ export function ShareManager({
       setLabel("");
       setSelectedFields([]);
       setRowFilters([]);
+      setAllowedEmails("");
     }
     setSaving(false);
   }
@@ -217,6 +224,24 @@ export function ShareManager({
             </button>
           </div>
 
+          {/* Email restriction */}
+          <div className="mb-5">
+            <label className="mb-2 block font-['IBM_Plex_Mono',monospace] text-[11px] uppercase tracking-wider text-[#5d6168]">
+              Restrict to emails (optional)
+            </label>
+            <p className="mb-2 text-[12px] text-[#5d6168]">
+              If set, viewers must verify their email before accessing data. One email per line.
+            </p>
+            <textarea
+              value={allowedEmails}
+              onChange={(e) => setAllowedEmails(e.target.value)}
+              placeholder={"investor@fund.com\npartner@vc.com"}
+              rows={3}
+              className="w-full max-w-sm border border-black/15 px-3 py-2 text-sm outline-none focus:border-[#8a6d40]"
+              style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px" }}
+            />
+          </div>
+
           <div className="flex gap-3">
             <button
               onClick={handleCreate}
@@ -250,6 +275,7 @@ export function ShareManager({
             const views = viewsSummary[link.id];
             const fields = typeof link.visible_fields === "string" ? JSON.parse(link.visible_fields) : link.visible_fields || [];
             const filters = typeof link.row_filters === "string" ? JSON.parse(link.row_filters) : link.row_filters || [];
+            const emails = typeof link.allowed_emails === "string" ? JSON.parse(link.allowed_emails) : link.allowed_emails || null;
 
             return (
               <div key={link.id} className="border border-black/10 bg-white px-5 py-4">
@@ -266,6 +292,7 @@ export function ShareManager({
                       {new Date(link.expires_at).toLocaleDateString()} &middot;{" "}
                       {fields.length} fields
                       {filters.length > 0 && ` · ${filters.length} filter${filters.length > 1 ? "s" : ""}`}
+                      {emails && emails.length > 0 && ` · ${emails.length} email${emails.length > 1 ? "s" : ""} gated`}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">

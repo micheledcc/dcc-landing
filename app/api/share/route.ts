@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { label, expiresInDays, visibleFields, rowFilters } = await req.json();
+  const { label, expiresInDays, visibleFields, rowFilters, allowedEmails } = await req.json();
 
   if (!label || !expiresInDays || !visibleFields?.length) {
     return NextResponse.json(
@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     expiresInDays,
     visibleFields,
     rowFilters: rowFilters || [],
+    allowedEmails: allowedEmails || undefined,
   });
 
   return NextResponse.json({ link });

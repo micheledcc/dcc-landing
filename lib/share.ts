@@ -17,18 +17,26 @@ export async function createShareLink(params: {
   expiresInDays: number;
   visibleFields: string[];
   rowFilters?: RowFilter[];
+  allowedEmails?: string[];
 }) {
   const token = generateToken();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + params.expiresInDays);
+  const emails = params.allowedEmails?.length
+    ? JSON.stringify(params.allowedEmails.map((e) => e.toLowerCase().trim()))
+    : null;
 
   const result = await sql`
-    INSERT INTO share_links (token, label, created_by_id, expires_at, visible_fields, row_filters)
-    VALUES (${token}, ${params.label}, ${params.createdById}, ${expiresAt.toISOString()}, ${JSON.stringify(params.visibleFields)}, ${JSON.stringify(params.rowFilters || [])})
-    RETURNING id, token, label, expires_at, visible_fields, row_filters, is_active, created_at
+    INSERT INTO share_links (token, label, created_by_id, expires_at, visible_fields, row_filters, allowed_emails)
+    VALUES (${token}, ${params.label}, ${params.createdById}, ${expiresAt.toISOString()}, ${JSON.stringify(params.visibleFields)}, ${JSON.stringify(params.rowFilters || [])}, ${emails})
+    RETURNING id, token, label, expires_at, visible_fields, row_filters, allowed_emails, is_active, created_at
   `;
 
   return result.rows[0];
+}
+
+export function generateCode(): string {
+  return crypto.randomInt(100000, 999999).toString();
 }
 
 export async function getShareLink(token: string) {

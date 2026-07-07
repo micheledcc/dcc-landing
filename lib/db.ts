@@ -42,7 +42,21 @@ export async function setupDatabase() {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS email_codes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      share_link_id UUID REFERENCES share_links(id) NOT NULL,
+      email TEXT NOT NULL,
+      code TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      attempts INT DEFAULT 0,
+      verified BOOLEAN DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT now()
+    )
+  `;
+
   // Migrations for existing databases
   await sql`ALTER TABLE admins ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member'`.catch(() => {});
   await sql`ALTER TABLE share_links ADD COLUMN IF NOT EXISTS row_filters JSONB DEFAULT '[]'`.catch(() => {});
+  await sql`ALTER TABLE share_links ADD COLUMN IF NOT EXISTS allowed_emails JSONB`.catch(() => {});
 }

@@ -2,7 +2,9 @@ import "@/app/globals.css";
 import { getShareLink, applyRowFilters } from "@/lib/share";
 import { readPipeline } from "@/lib/sheets";
 import { logView } from "@/lib/analytics";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
+import { jwtVerify } from "jose";
+import { EmailGate } from "./email-gate";
 
 const STAGE_COLORS: Record<string, string> = {
   "1 - Outreach": "#b9b2a4",
@@ -86,6 +88,39 @@ export default async function ViewPage({
         </div>
       </ViewShell>
     );
+  }
+
+  // Check email gate
+  const allowedEmails: string[] | null =
+    typeof link.allowed_emails === "string"
+      ? JSON.parse(link.allowed_emails)
+      : link.allowed_emails;
+
+  if (allowedEmails && allowedEmails.length > 0) {
+    // Check for viewer cookie
+    const jar = await cookies();
+    const viewerCookie = jar.get(`dcc_view_${token.substring(0, 16)}`)?.value;
+    let verified = false;
+
+    if (viewerCookie) {
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret-change-me");
+        const { payload } = await jwtVerify(viewerCookie, secret);
+        if (payload.token === token && allowedEmails.includes(payload.email as string)) {
+          verified = true;
+        }
+      } catch {
+        // Cookie invalid or expired — show gate
+      }
+    }
+
+    if (!verified) {
+      return (
+        <ViewShell>
+          <EmailGate token={token} linkLabel={link.label} />
+        </ViewShell>
+      );
+    }
   }
 
   // Log the view
