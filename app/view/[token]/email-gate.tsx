@@ -5,9 +5,11 @@ import { useState, useRef, useEffect } from "react";
 export function EmailGate({
   token,
   linkLabel,
+  apiPrefix = "/api/view",
 }: {
   token: string;
   linkLabel: string;
+  apiPrefix?: string;
 }) {
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -22,7 +24,7 @@ export function EmailGate({
     setError("");
     setLoading(true);
 
-    const res = await fetch(`/api/view/${token}/request-code`, {
+    const res = await fetch(`${apiPrefix}/${token}/request-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
@@ -46,7 +48,7 @@ export function EmailGate({
     setError("");
     setLoading(true);
 
-    const res = await fetch(`/api/view/${token}/verify-code`, {
+    const res = await fetch(`${apiPrefix}/${token}/verify-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code: fullCode }),
@@ -66,7 +68,7 @@ export function EmailGate({
   async function handleResend() {
     setError("");
     setLoading(true);
-    const res = await fetch(`/api/view/${token}/request-code`, {
+    const res = await fetch(`${apiPrefix}/${token}/request-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
@@ -109,7 +111,7 @@ export function EmailGate({
     setError("");
     setLoading(true);
 
-    const res = await fetch(`/api/view/${token}/verify-code`, {
+    const res = await fetch(`${apiPrefix}/${token}/verify-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code: fullCode }),

@@ -39,6 +39,12 @@ export default async function DashboardLayout({
               >
                 Share Links
               </Link>
+              <Link
+                href="/dashboard/room"
+                className="font-['IBM_Plex_Mono',monospace] text-[11px] uppercase tracking-wider text-[#5d6168] no-underline hover:text-[#17191c]"
+              >
+                Data Room
+              </Link>
               {auth?.role === "owner" && (
                 <Link
                   href="/dashboard/team"
