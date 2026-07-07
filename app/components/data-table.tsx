@@ -73,9 +73,17 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
 
   const handleMouseDown = useCallback((col: string, e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     const startX = e.clientX;
-    const startW = colWidths[col] || 150;
+    // Read actual rendered width from the th element
+    const th = (e.target as HTMLElement).closest("th");
+    const startW = th ? th.offsetWidth : (colWidths[col] || 150);
     resizingRef.current = { col, startX, startW };
+
+    // Set initial width for all columns to lock them during resize
+    if (!colWidths[col] && th) {
+      setColWidths((prev) => ({ ...prev, [col]: th.offsetWidth }));
+    }
 
     function onMove(ev: MouseEvent) {
       if (!resizingRef.current) return;
@@ -129,7 +137,7 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
       )}
 
       <div className="w-full overflow-x-auto border border-black/10 bg-white">
-        <table className="w-full min-w-[700px] border-collapse">
+        <table className={`w-full min-w-[700px] border-collapse ${Object.keys(colWidths).length > 0 ? "" : ""}`} style={Object.keys(colWidths).length > 0 ? { tableLayout: "fixed" } : undefined}>
           <thead>
             <tr className="border-b border-black/12 bg-[#faf9f6]">
               {displayHeaders.map((h, hi) => (
@@ -138,7 +146,7 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
                   className={`relative select-none whitespace-nowrap px-4 text-left font-['IBM_Plex_Mono',monospace] text-[11px] font-medium uppercase tracking-wider text-[#5d6168] ${
                     hi < displayHeaders.length - 1 ? "border-r border-black/[0.06]" : ""
                   }`}
-                  style={{ width: colWidths[h] ? `${colWidths[h]}px` : undefined }}
+                  style={colWidths[h] ? { width: `${colWidths[h]}px`, minWidth: `${colWidths[h]}px`, maxWidth: `${colWidths[h]}px` } : undefined}
                 >
                   <div className={`flex items-center gap-1 ${py}`}>
                     {showSort ? (
@@ -177,10 +185,10 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
                   return (
                     <td
                       key={h}
-                      className={`px-4 ${py} align-top ${
+                      className={`px-4 ${py} align-top overflow-hidden ${
                         hi < displayHeaders.length - 1 ? "border-r border-black/[0.04]" : ""
                       }`}
-                      style={{ width: colWidths[h] ? `${colWidths[h]}px` : undefined }}
+                      style={colWidths[h] ? { width: `${colWidths[h]}px`, minWidth: `${colWidths[h]}px`, maxWidth: `${colWidths[h]}px` } : undefined}
                     >
                       {h === "Stage" ? (
                         <span
