@@ -212,10 +212,10 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
                         <span className={`font-medium text-[#17191c] ${textSize}`}>{val}</span>
                       ) : (
                         <div
-                          className={`${textSize} text-[#2c2f34] leading-relaxed ${
+                          className={`${textSize} text-[#2c2f34] ${
                             isExpanded
-                              ? "whitespace-pre-wrap break-words"
-                              : "truncate"
+                              ? "whitespace-pre-wrap break-words leading-relaxed"
+                              : colWidths[h] ? "truncate" : "whitespace-nowrap overflow-hidden text-ellipsis"
                           } ${isLong ? "cursor-pointer hover:text-[#17191c]" : ""}`}
                           onClick={isLong ? () => setExpandedCell(isExpanded ? null : key) : undefined}
                           title={isLong && !isExpanded ? val : undefined}
