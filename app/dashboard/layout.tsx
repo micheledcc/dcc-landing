@@ -26,7 +26,7 @@ export default async function DashboardLayout({
                 Dashboard
               </span>
             </Link>
-            <nav className="ml-8 flex gap-6">
+            <nav className="ml-8 flex items-center gap-6">
               <Link
                 href="/dashboard"
                 className="font-['IBM_Plex_Mono',monospace] text-[11px] uppercase tracking-wider text-[#5d6168] no-underline hover:text-[#17191c]"
@@ -34,16 +34,16 @@ export default async function DashboardLayout({
                 Pipeline
               </Link>
               <Link
-                href="/dashboard/share"
+                href="/dashboard/documents"
                 className="font-['IBM_Plex_Mono',monospace] text-[11px] uppercase tracking-wider text-[#5d6168] no-underline hover:text-[#17191c]"
               >
-                Share Links
+                Documents
               </Link>
               <Link
-                href="/dashboard/room"
+                href="/dashboard/sharing"
                 className="font-['IBM_Plex_Mono',monospace] text-[11px] uppercase tracking-wider text-[#5d6168] no-underline hover:text-[#17191c]"
               >
-                Data Room
+                Sharing
               </Link>
               {auth?.role === "owner" && (
                 <Link
