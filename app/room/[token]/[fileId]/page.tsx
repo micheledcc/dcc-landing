@@ -1,5 +1,6 @@
 import "@/app/globals.css";
 import { getRoomLink } from "@/lib/room";
+import { listDriveFolder } from "@/lib/drive";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 import { PdfViewer } from "./pdf-viewer";
@@ -23,7 +24,7 @@ export default async function FileViewPage({
     return <Shell token={token}><p>Room not found or expired.</p></Shell>;
   }
 
-  // Email gate check for gated rooms
+  // Email gate check
   const allowedEmails: string[] | null =
     typeof link.allowed_emails === "string" ? JSON.parse(link.allowed_emails) : link.allowed_emails;
   let viewerEmail = queryEmail || undefined;
@@ -31,7 +32,6 @@ export default async function FileViewPage({
   if (allowedEmails && allowedEmails.length > 0) {
     const jar = await cookies();
     const viewerCookie = jar.get(`dcc_room_${token.substring(0, 16)}`)?.value;
-
     if (viewerCookie) {
       try {
         const secret = new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret-change-me");
@@ -41,23 +41,21 @@ export default async function FileViewPage({
     }
   }
 
-  // Get file metadata from the files list
-  const filesRes = await fetch(
-    `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"}/api/room/${token}/files`,
-    { cache: "no-store" }
-  ).catch(() => null);
+  // Get file metadata directly from Drive
+  const allowedFileIds =
+    typeof link.allowed_file_ids === "string" ? JSON.parse(link.allowed_file_ids) : link.allowed_file_ids;
 
   let fileName = "Document";
   let mimeType = "";
 
-  if (filesRes?.ok) {
-    const { files } = await filesRes.json();
-    const file = files?.find((f: any) => f.id === fileId);
+  try {
+    const files = await listDriveFolder(link.drive_folder_id, allowedFileIds);
+    const file = files.find((f) => f.id === fileId);
     if (file) {
       fileName = file.name;
       mimeType = file.mimeType;
     }
-  }
+  } catch {}
 
   const fileUrl = `/api/room/${token}/file/${fileId}`;
   const downloadUrl = `${fileUrl}?download=1`;
@@ -115,12 +113,14 @@ export default async function FileViewPage({
               FILE
             </div>
             <p className="mb-4 text-[15px] text-[#5d6168]">This file type cannot be previewed.</p>
-            <a
-              href={downloadUrl}
-              className="inline-block bg-[#17191c] px-6 py-3 font-['IBM_Plex_Mono',monospace] text-[12px] text-[#f3efe7] no-underline hover:bg-[#2c2f34]"
-            >
-              Download {fileName}
-            </a>
+            {canDownload && (
+              <a
+                href={downloadUrl}
+                className="inline-block bg-[#17191c] px-6 py-3 font-['IBM_Plex_Mono',monospace] text-[12px] text-[#f3efe7] no-underline hover:bg-[#2c2f34]"
+              >
+                Download {fileName}
+              </a>
+            )}
           </div>
         </div>
       )}
