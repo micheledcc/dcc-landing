@@ -33,7 +33,6 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
 
   const displayHeaders = headers.filter((h) => !h.startsWith("_"));
 
-  // Get unique values for filter dropdowns
   const uniqueValues = useMemo(() => {
     const uv: Record<string, string[]> = {};
     displayHeaders.forEach((h) => {
@@ -43,7 +42,6 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
     return uv;
   }, [rows, displayHeaders]);
 
-  // Filter rows
   const filteredRows = useMemo(() => {
     return rows.filter((row) =>
       Object.entries(filters).every(([col, val]) => {
@@ -53,7 +51,6 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
     );
   }, [rows, filters]);
 
-  // Sort rows
   const sortedRows = useMemo(() => {
     if (!sortCol) return filteredRows;
     return [...filteredRows].sort((a, b) => {
@@ -131,15 +128,17 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
         </div>
       )}
 
-      <div className="overflow-x-auto border border-black/10 bg-white">
-        <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
+      <div className="w-full overflow-x-auto border border-black/10 bg-white">
+        <table className="w-full min-w-[700px] border-collapse">
           <thead>
             <tr className="border-b border-black/12 bg-[#faf9f6]">
-              {displayHeaders.map((h) => (
+              {displayHeaders.map((h, hi) => (
                 <th
                   key={h}
-                  className="relative select-none whitespace-nowrap px-4 text-left font-['IBM_Plex_Mono',monospace] text-[11px] font-medium uppercase tracking-wider text-[#5d6168]"
-                  style={{ width: colWidths[h] ? `${colWidths[h]}px` : "auto", minWidth: 60 }}
+                  className={`relative select-none whitespace-nowrap px-4 text-left font-['IBM_Plex_Mono',monospace] text-[11px] font-medium uppercase tracking-wider text-[#5d6168] ${
+                    hi < displayHeaders.length - 1 ? "border-r border-black/[0.06]" : ""
+                  }`}
+                  style={{ width: colWidths[h] ? `${colWidths[h]}px` : undefined }}
                 >
                   <div className={`flex items-center gap-1 ${py}`}>
                     {showSort ? (
@@ -159,7 +158,8 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
                   {/* Resize handle */}
                   <div
                     onMouseDown={(e) => handleMouseDown(h, e)}
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-[#8a6d40]/30"
+                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize bg-transparent hover:bg-[#8a6d40]/20"
+                    style={{ marginRight: -1 }}
                   />
                 </th>
               ))}
@@ -168,7 +168,7 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
           <tbody>
             {sortedRows.map((row, i) => (
               <tr key={i} className="border-b border-black/6 transition-colors hover:bg-[#f9f7f2]">
-                {displayHeaders.map((h) => {
+                {displayHeaders.map((h, hi) => {
                   const val = row[h] || "";
                   const key = cellKey(i, h);
                   const isExpanded = expandedCell === key;
@@ -177,8 +177,10 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
                   return (
                     <td
                       key={h}
-                      className={`px-4 ${py}`}
-                      style={{ width: colWidths[h] ? `${colWidths[h]}px` : "auto" }}
+                      className={`px-4 ${py} align-top ${
+                        hi < displayHeaders.length - 1 ? "border-r border-black/[0.04]" : ""
+                      }`}
+                      style={{ width: colWidths[h] ? `${colWidths[h]}px` : undefined }}
                     >
                       {h === "Stage" ? (
                         <span
@@ -202,11 +204,18 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
                         <span className={`font-medium text-[#17191c] ${textSize}`}>{val}</span>
                       ) : (
                         <div
-                          className={`${textSize} text-[#2c2f34] ${isExpanded ? "" : "truncate"} ${isLong ? "cursor-pointer" : ""}`}
+                          className={`${textSize} text-[#2c2f34] leading-relaxed ${
+                            isExpanded
+                              ? "whitespace-pre-wrap break-words"
+                              : "truncate"
+                          } ${isLong ? "cursor-pointer hover:text-[#17191c]" : ""}`}
                           onClick={isLong ? () => setExpandedCell(isExpanded ? null : key) : undefined}
                           title={isLong && !isExpanded ? val : undefined}
                         >
                           {val}
+                          {isLong && !isExpanded && (
+                            <span className="ml-1 font-['IBM_Plex_Mono',monospace] text-[9px] text-[#8a6d40]">more</span>
+                          )}
                         </div>
                       )}
                     </td>
