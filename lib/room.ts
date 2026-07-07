@@ -12,6 +12,7 @@ export async function createRoomLink(params: {
   expiresInDays: number;
   allowedEmails?: string[];
   allowedFileIds?: string[];
+  allowDownload?: boolean;
 }) {
   const token = generateToken();
   const expiresAt = new Date();
@@ -22,10 +23,11 @@ export async function createRoomLink(params: {
   const fileIds = params.allowedFileIds?.length
     ? JSON.stringify(params.allowedFileIds)
     : null;
+  const allowDownload = params.allowDownload ?? true;
 
   const result = await sql`
-    INSERT INTO room_links (token, label, created_by_id, drive_folder_id, expires_at, allowed_emails, allowed_file_ids)
-    VALUES (${token}, ${params.label}, ${params.createdById}, ${params.driveFolderId}, ${expiresAt.toISOString()}, ${emails}, ${fileIds})
+    INSERT INTO room_links (token, label, created_by_id, drive_folder_id, expires_at, allowed_emails, allowed_file_ids, allow_download)
+    VALUES (${token}, ${params.label}, ${params.createdById}, ${params.driveFolderId}, ${expiresAt.toISOString()}, ${emails}, ${fileIds}, ${allowDownload})
     RETURNING *
   `;
   return result.rows[0];

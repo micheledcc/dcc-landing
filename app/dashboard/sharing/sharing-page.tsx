@@ -9,13 +9,17 @@ export function SharingPage({
   roomLinks,
   pipelineHeaders,
   shareViewsSummary,
-  roomAnalytics,
+  roomSummaryAnalytics,
+  roomDetailedAnalytics,
+  driveFiles,
 }: {
   shareLinks: any[];
   roomLinks: any[];
   pipelineHeaders: string[];
   shareViewsSummary: any;
-  roomAnalytics: any;
+  roomSummaryAnalytics: any;
+  roomDetailedAnalytics: any;
+  driveFiles: any[];
 }) {
   const [tab, setTab] = useState<"pipeline" | "dataroom">("pipeline");
 
@@ -52,7 +56,6 @@ export function SharingPage({
         </button>
       </div>
 
-      {/* Content */}
       {tab === "pipeline" && (
         <ShareManager
           initialLinks={shareLinks}
@@ -64,7 +67,9 @@ export function SharingPage({
       {tab === "dataroom" && (
         <RoomManager
           initialLinks={roomLinks}
-          analytics={roomAnalytics}
+          summaryAnalytics={roomSummaryAnalytics}
+          detailedAnalytics={roomDetailedAnalytics}
+          driveFiles={driveFiles}
         />
       )}
     </div>

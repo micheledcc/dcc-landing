@@ -65,6 +65,7 @@ export async function setupDatabase() {
       expires_at TIMESTAMPTZ NOT NULL,
       allowed_emails JSONB,
       allowed_file_ids JSONB,
+      allow_download BOOLEAN DEFAULT true,
       is_active BOOLEAN DEFAULT true,
       created_at TIMESTAMPTZ DEFAULT now()
     )
@@ -96,4 +97,5 @@ export async function setupDatabase() {
   // email_codes: allow room links too (share_link_id can be null for room codes)
   await sql`ALTER TABLE email_codes ALTER COLUMN share_link_id DROP NOT NULL`.catch(() => {});
   await sql`ALTER TABLE email_codes ADD COLUMN IF NOT EXISTS room_link_id UUID REFERENCES room_links(id)`.catch(() => {});
+  await sql`ALTER TABLE room_links ADD COLUMN IF NOT EXISTS allow_download BOOLEAN DEFAULT true`.catch(() => {});
 }

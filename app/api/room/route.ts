@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const auth = await getAuth();
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { label, expiresInDays, allowedEmails } = await req.json();
+  const { label, expiresInDays, allowedEmails, allowedFileIds, allowDownload } = await req.json();
 
   if (!label || !expiresInDays) {
     return NextResponse.json({ error: "label and expiresInDays required" }, { status: 400 });
@@ -32,6 +32,8 @@ export async function POST(req: NextRequest) {
     driveFolderId: DEFAULT_FOLDER_ID,
     expiresInDays,
     allowedEmails: emails,
+    allowedFileIds: allowedFileIds?.length ? allowedFileIds : undefined,
+    allowDownload: allowDownload ?? true,
   });
 
   return NextResponse.json({ link });

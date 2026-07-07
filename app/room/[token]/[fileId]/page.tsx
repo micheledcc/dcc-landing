@@ -63,6 +63,7 @@ export default async function FileViewPage({
   const downloadUrl = `${fileUrl}?download=1`;
   const isPdf = mimeType === "application/pdf" || fileName.endsWith(".pdf");
   const isImage = mimeType.startsWith("image/");
+  const canDownload = link.allow_download !== false;
 
   return (
     <Shell token={token}>
@@ -76,13 +77,15 @@ export default async function FileViewPage({
           </Link>
           <h1 className="font-['Spectral',Georgia,serif] text-2xl font-light">{fileName}</h1>
         </div>
-        <a
-          href={downloadUrl}
-          className="flex items-center gap-2 border border-black/15 bg-white px-4 py-2 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#3a3d42] no-underline hover:border-black/25"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download
-        </a>
+        {canDownload && (
+          <a
+            href={downloadUrl}
+            className="flex items-center gap-2 border border-black/15 bg-white px-4 py-2 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#3a3d42] no-underline hover:border-black/25"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </a>
+        )}
       </div>
 
       {isPdf && (

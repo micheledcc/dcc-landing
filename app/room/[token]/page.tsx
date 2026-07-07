@@ -89,9 +89,12 @@ export default async function RoomPage({
           const icon = getFileIcon(file.mimeType);
           const size = formatFileSize(file.size);
           const isViewable = file.mimeType === "application/pdf" || file.mimeType.startsWith("image/");
+          const canDownload = link.allow_download !== false;
           const href = isViewable
             ? `/room/${token}/${file.id}${viewerEmail ? `?email=${encodeURIComponent(viewerEmail)}` : ""}`
-            : `/api/room/${token}/file/${file.id}?download=1`;
+            : canDownload
+              ? `/api/room/${token}/file/${file.id}?download=1`
+              : "#";
 
           return (
             <Link
@@ -112,7 +115,7 @@ export default async function RoomPage({
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[15px] font-medium text-[#17191c]">{file.name}</div>
                 <div className="mt-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#5d6168]">
-                  {size} &middot; {isViewable ? "Click to view" : "Click to download"}
+                  {size} &middot; {isViewable ? "Click to view" : canDownload ? "Click to download" : "View only"}
                 </div>
               </div>
               <div className="shrink-0 font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#b9b2a4]">
