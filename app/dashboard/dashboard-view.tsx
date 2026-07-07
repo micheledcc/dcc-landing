@@ -110,7 +110,7 @@ export function DashboardView({
   return (
     <div>
       {/* Header */}
-      <div className="mb-8 flex items-end justify-between">
+      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-['Spectral',Georgia,serif] text-3xl font-light">
             Investor Pipeline
@@ -131,7 +131,7 @@ export function DashboardView({
       </div>
 
       {/* Summary Cards */}
-      <div className="mb-8 grid grid-cols-4 gap-4">
+      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <SummaryCard
           label="Total Committed"
           value={formatCurrency(stats.totalCommitted)}
@@ -166,7 +166,7 @@ export function DashboardView({
       </div>
 
       {/* Charts Row */}
-      <div className="mb-8 grid grid-cols-2 gap-6">
+      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         {/* Stage Funnel */}
         <div className="border border-black/10 bg-white p-6">
           <h3 className="mb-4 font-['IBM_Plex_Mono',monospace] text-[11px] uppercase tracking-wider text-[#5d6168]">

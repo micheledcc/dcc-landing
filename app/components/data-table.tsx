@@ -107,7 +107,7 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
     <div>
       {/* Filters row */}
       {showFilters && Object.keys(uniqueValues).length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 md:gap-2">
           <span className="font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#8a6d40]">Filter:</span>
           {Object.entries(uniqueValues).map(([col, vals]) => (
             <select
@@ -137,7 +137,7 @@ export function DataTable({ headers, rows, showFilters = true, showSort = true, 
       )}
 
       <div className="w-full overflow-x-auto border border-black/10 bg-white">
-        <table className={`w-full min-w-[700px] border-collapse ${Object.keys(colWidths).length > 0 ? "" : ""}`} style={Object.keys(colWidths).length > 0 ? { tableLayout: "fixed" } : undefined}>
+        <table className="w-full min-w-[500px] border-collapse md:min-w-[700px]" style={Object.keys(colWidths).length > 0 ? { tableLayout: "fixed" } : undefined}>
           <thead>
             <tr className="border-b border-black/12 bg-[#faf9f6]">
               {displayHeaders.map((h, hi) => (

@@ -132,14 +132,14 @@ function Shell({ children, token }: { children: React.ReactNode; token: string }
   return (
     <div className="min-h-screen bg-[#f3efe7] font-['IBM_Plex_Sans',system-ui,sans-serif] text-[#17191c]">
       <header className="sticky top-0 z-50 border-b border-black/10 bg-[rgba(243,239,231,0.86)] backdrop-blur-[10px]">
-        <div className="mx-auto flex h-[74px] max-w-[1160px] items-center px-10">
+        <div className="mx-auto flex h-14 md:h-[74px] max-w-[1160px] items-center px-4 md:px-10">
           <Link href={`/room/${token}`} className="flex items-center gap-[14px] no-underline text-inherit">
             <span className="flex h-[34px] w-[34px] items-center justify-center border border-[#17191c] font-['IBM_Plex_Mono',monospace] text-[11px] font-medium tracking-[0.04em]">DCC</span>
             <span className="font-['IBM_Plex_Mono',monospace] text-[10.5px] uppercase tracking-[0.22em] text-[#3a3d42]">Data Room</span>
           </Link>
         </div>
       </header>
-      <main className="mx-auto max-w-[1160px] px-10 py-8">{children}</main>
+      <main className="mx-auto max-w-[1160px] px-4 md:px-10 py-8">{children}</main>
     </div>
   );
 }

@@ -223,7 +223,7 @@ function ViewShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#f3efe7] font-['IBM_Plex_Sans',system-ui,sans-serif] text-[#17191c]">
       {/* Header — matches landing page */}
       <header className="sticky top-0 z-50 border-b border-black/10 bg-[rgba(243,239,231,0.86)] backdrop-blur-[10px]">
-        <div className="mx-auto flex h-[74px] max-w-[1160px] items-center justify-between px-10">
+        <div className="mx-auto flex h-14 md:h-[74px] max-w-[1160px] items-center justify-between px-4 md:px-10">
           <a href="/" className="flex items-center gap-[14px] no-underline text-inherit">
             <span className="flex h-[34px] w-[34px] items-center justify-center border border-[#17191c] font-['IBM_Plex_Mono',monospace] text-[11px] font-medium tracking-[0.04em]">
               DCC
@@ -236,11 +236,11 @@ function ViewShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Content */}
-      <main className="mx-auto max-w-[1160px] px-10 py-16">{children}</main>
+      <main className="mx-auto max-w-[1160px] px-4 md:px-10 py-16">{children}</main>
 
       {/* Footer — matches landing page */}
       <footer className="border-t border-black/8 bg-[#17191c] text-[#75766f]">
-        <div className="mx-auto flex max-w-[1160px] items-center justify-between px-10 py-10 flex-wrap gap-4">
+        <div className="mx-auto flex max-w-[1160px] items-center justify-between px-4 md:px-10 py-10 flex-wrap gap-4">
           <div className="flex items-center gap-[13px]">
             <span className="flex h-7 w-7 items-center justify-center border border-[#75766f] font-['IBM_Plex_Mono',monospace] text-[9.5px] tracking-[0.04em] text-[#a9aaa6]">
               DCC

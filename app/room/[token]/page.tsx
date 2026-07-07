@@ -154,14 +154,14 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#f3efe7] font-['IBM_Plex_Sans',system-ui,sans-serif] text-[#17191c]">
       <header className="sticky top-0 z-50 border-b border-black/10 bg-[rgba(243,239,231,0.86)] backdrop-blur-[10px]">
-        <div className="mx-auto flex h-[74px] max-w-[1160px] items-center px-10">
+        <div className="mx-auto flex h-14 md:h-[74px] max-w-[1160px] items-center px-4 md:px-10">
           <span className="flex h-[34px] w-[34px] items-center justify-center border border-[#17191c] font-['IBM_Plex_Mono',monospace] text-[11px] font-medium tracking-[0.04em]">DCC</span>
           <span className="ml-[14px] font-['IBM_Plex_Mono',monospace] text-[10.5px] uppercase tracking-[0.22em] text-[#3a3d42]">Digital&nbsp;Collateral&nbsp;Corporation</span>
         </div>
       </header>
-      <main className="mx-auto max-w-[1160px] px-10 py-16">{children}</main>
+      <main className="mx-auto max-w-[1160px] px-4 md:px-10 py-16">{children}</main>
       <footer className="border-t border-black/8 bg-[#17191c] text-[#75766f]">
-        <div className="mx-auto flex max-w-[1160px] items-center justify-between px-10 py-10 flex-wrap gap-4">
+        <div className="mx-auto flex max-w-[1160px] items-center justify-between px-4 md:px-10 py-10 flex-wrap gap-4">
           <div className="flex items-center gap-[13px]">
             <span className="flex h-7 w-7 items-center justify-center border border-[#75766f] font-['IBM_Plex_Mono',monospace] text-[9.5px] tracking-[0.04em] text-[#a9aaa6]">DCC</span>
             <span className="font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-[0.18em] text-[#a9aaa6]">Digital Collateral Corporation</span>
