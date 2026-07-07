@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { DataTable } from "@/app/components/data-table";
 
 const STAGE_ORDER = [
   "1 - Outreach",
@@ -54,7 +55,6 @@ export function DashboardView({
   const [adding, setAdding] = useState(false);
   const [newRow, setNewRow] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [filter, setFilter] = useState<string>("all");
 
   const stats = useMemo(() => {
     const totalCommitted = rows.reduce(
@@ -84,9 +84,6 @@ export function DashboardView({
 
     return { totalCommitted, weighted, byStage, byType };
   }, [rows]);
-
-  const filteredRows =
-    filter === "all" ? rows : rows.filter((r) => r["Type"] === filter);
 
   const displayHeaders = headers.filter((h) => !h.startsWith("_"));
 
@@ -265,23 +262,9 @@ export function DashboardView({
         </div>
       </div>
 
-      {/* Filter Tabs + Table */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex gap-1">
-          {["all", "Angel", "VC", "Advisor"].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`cursor-pointer border px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] uppercase tracking-wider transition-colors ${
-                filter === f
-                  ? "border-[#17191c] bg-[#17191c] text-[#f3efe7]"
-                  : "border-black/12 bg-white text-[#5d6168] hover:border-black/25"
-              }`}
-            >
-              {f === "all" ? "All" : f} ({f === "all" ? rows.length : rows.filter((r) => r["Type"] === f).length})
-            </button>
-          ))}
-        </div>
+      {/* Table with add button */}
+      <div className="mb-4 flex items-end justify-between">
+        <div />
         <button
           onClick={() => setAdding(true)}
           className="cursor-pointer bg-[#17191c] px-4 py-2 font-['IBM_Plex_Mono',monospace] text-[12px] tracking-wide text-[#f3efe7] hover:bg-[#2c2f34]"
@@ -291,128 +274,55 @@ export function DashboardView({
       </div>
 
       {/* Data Table */}
-      <div className="overflow-x-auto border border-black/10 bg-white">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-black/12 bg-[#faf9f6]">
-              {displayHeaders.map((h) => (
-                <th
-                  key={h}
-                  className="whitespace-nowrap px-4 py-3 text-left font-['IBM_Plex_Mono',monospace] text-[11px] font-medium uppercase tracking-wider text-[#5d6168]"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.map((row, i) => (
-              <tr
-                key={i}
-                className="border-b border-black/6 transition-colors hover:bg-[#f9f7f2]"
-              >
-                {displayHeaders.map((h) => (
-                  <td key={h} className="px-4 py-3">
-                    {h === "Stage" ? (
-                      <StageBadge stage={row[h] || ""} />
-                    ) : h === "Type" ? (
-                      <TypeBadge type={row[h] || ""} />
-                    ) : h === "Amount ($)" || h === "Weighted ($)" ? (
-                      <span className="font-['IBM_Plex_Mono',monospace] text-[13px] tabular-nums">
-                        {row[h] || "-"}
-                      </span>
-                    ) : h === "Prob" ? (
-                      <span className="font-['IBM_Plex_Mono',monospace] text-[12px] text-[#8a6d40]">
-                        {row[h] || "-"}
-                      </span>
-                    ) : h === "Profile / Notes" ? (
-                      <span
-                        className="block max-w-[280px] truncate text-[13px] text-[#5d6168]"
-                        title={row[h] || ""}
-                      >
-                        {row[h] || ""}
-                      </span>
-                    ) : (
-                      <span className="text-[13px] text-[#2c2f34]">
-                        {row[h] || ""}
-                      </span>
-                    )}
-                  </td>
-                ))}
-              </tr>
-            ))}
+      <DataTable headers={headers} rows={rows} />
 
-            {adding && (
-              <tr className="border-b border-[#8a6d40]/30 bg-[#8a6d40]/5">
-                {displayHeaders.map((h) => (
-                  <td key={h} className="px-4 py-2">
-                    {h === "Type" ? (
-                      <select
-                        value={newRow[h] || ""}
-                        onChange={(e) =>
-                          setNewRow({ ...newRow, [h]: e.target.value })
-                        }
-                        className="w-full border border-black/15 bg-white px-2 py-1.5 text-sm outline-none"
-                      >
-                        <option value="">Select...</option>
-                        <option value="Angel">Angel</option>
-                        <option value="VC">VC</option>
-                        <option value="Advisor">Advisor</option>
-                      </select>
-                    ) : h === "Stage" ? (
-                      <select
-                        value={newRow[h] || ""}
-                        onChange={(e) =>
-                          setNewRow({ ...newRow, [h]: e.target.value })
-                        }
-                        className="w-full border border-black/15 bg-white px-2 py-1.5 text-sm outline-none"
-                      >
-                        <option value="">Select...</option>
-                        {STAGE_ORDER.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={newRow[h] || ""}
-                        onChange={(e) =>
-                          setNewRow({ ...newRow, [h]: e.target.value })
-                        }
-                        placeholder={h}
-                        className="w-full border border-black/15 bg-white px-2 py-1.5 text-sm outline-none focus:border-[#8a6d40]"
-                      />
-                    )}
-                  </td>
-                ))}
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
+      {/* Add investor form */}
       {adding && (
-        <div className="mt-3 flex gap-3">
-          <button
-            onClick={handleAddRow}
-            disabled={saving || !newRow["Name"]}
-            className="cursor-pointer bg-[#17191c] px-5 py-2 font-['IBM_Plex_Mono',monospace] text-[12px] tracking-wide text-[#f3efe7] hover:bg-[#2c2f34] disabled:opacity-40"
-          >
-            {saving ? "Saving..." : "Save to sheet"}
-          </button>
-          <button
-            onClick={() => {
-              setAdding(false);
-              setNewRow({});
-            }}
-            className="cursor-pointer border border-black/15 bg-white px-4 py-2 font-['IBM_Plex_Mono',monospace] text-[12px] tracking-wide text-[#5d6168] hover:border-black/30"
-          >
-            Cancel
-          </button>
+        <div className="mt-3 border border-[#8a6d40]/30 bg-[#8a6d40]/5 p-4">
+          <div className="mb-3 grid grid-cols-3 gap-2 md:grid-cols-5">
+            {displayHeaders.slice(0, 5).map((h) => (
+              <div key={h}>
+                <label className="mb-1 block font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#5d6168]">{h}</label>
+                {h === "Type" ? (
+                  <select value={newRow[h] || ""} onChange={(e) => setNewRow({ ...newRow, [h]: e.target.value })} className="w-full border border-black/15 bg-white px-2 py-1.5 text-sm outline-none">
+                    <option value="">Select...</option>
+                    <option value="Angel">Angel</option>
+                    <option value="VC">VC</option>
+                    <option value="Advisor">Advisor</option>
+                  </select>
+                ) : h === "Stage" ? (
+                  <select value={newRow[h] || ""} onChange={(e) => setNewRow({ ...newRow, [h]: e.target.value })} className="w-full border border-black/15 bg-white px-2 py-1.5 text-sm outline-none">
+                    <option value="">Select...</option>
+                    {STAGE_ORDER.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : (
+                  <input type="text" value={newRow[h] || ""} onChange={(e) => setNewRow({ ...newRow, [h]: e.target.value })} placeholder={h} className="w-full border border-black/15 bg-white px-2 py-1.5 text-sm outline-none focus:border-[#8a6d40]" />
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Remaining fields */}
+          {displayHeaders.length > 5 && (
+            <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+              {displayHeaders.slice(5).filter(h => !h.startsWith("_")).map((h) => (
+                <div key={h}>
+                  <label className="mb-1 block font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#5d6168]">{h}</label>
+                  <input type="text" value={newRow[h] || ""} onChange={(e) => setNewRow({ ...newRow, [h]: e.target.value })} placeholder={h} className="w-full border border-black/15 bg-white px-2 py-1.5 text-sm outline-none focus:border-[#8a6d40]" />
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button onClick={handleAddRow} disabled={saving || !newRow["Name"]} className="cursor-pointer bg-[#17191c] px-5 py-2 font-['IBM_Plex_Mono',monospace] text-[12px] tracking-wide text-[#f3efe7] hover:bg-[#2c2f34] disabled:opacity-40">
+              {saving ? "Saving..." : "Save to sheet"}
+            </button>
+            <button onClick={() => { setAdding(false); setNewRow({}); }} className="cursor-pointer border border-black/15 bg-white px-4 py-2 font-['IBM_Plex_Mono',monospace] text-[12px] tracking-wide text-[#5d6168] hover:border-black/30">
+              Cancel
+            </button>
+          </div>
         </div>
       )}
+
     </div>
   );
 }
@@ -441,26 +351,3 @@ function SummaryCard({
   );
 }
 
-function StageBadge({ stage }: { stage: string }) {
-  const color = STAGE_COLORS[stage] || "#5d6168";
-  return (
-    <span
-      className="inline-block whitespace-nowrap px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[10px] text-white"
-      style={{ backgroundColor: color }}
-    >
-      {stage || "-"}
-    </span>
-  );
-}
-
-function TypeBadge({ type }: { type: string }) {
-  const color = TYPE_COLORS[type] || "#5d6168";
-  return (
-    <span
-      className="inline-block whitespace-nowrap border px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[10px]"
-      style={{ borderColor: color, color }}
-    >
-      {type || "-"}
-    </span>
-  );
-}

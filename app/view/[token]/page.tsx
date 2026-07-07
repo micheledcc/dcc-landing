@@ -5,24 +5,7 @@ import { logView } from "@/lib/analytics";
 import { headers, cookies } from "next/headers";
 import { jwtVerify } from "jose";
 import { EmailGate } from "./email-gate";
-
-const STAGE_COLORS: Record<string, string> = {
-  "1 - Outreach": "#b9b2a4",
-  "2 - Pitch": "#a09484",
-  "3 - Internal IC": "#8a6d40",
-  "4 - Final DD": "#6d5530",
-  "5 - Verbal Commit": "#3a7c5f",
-  "6 - Signed": "#2d6a4f",
-  "7 - Wired": "#1b4332",
-  Advisor: "#5d6168",
-  "0 - Passed": "#c44",
-};
-
-const TYPE_COLORS: Record<string, string> = {
-  Angel: "#8a6d40",
-  VC: "#17191c",
-  Advisor: "#5d6168",
-};
+import { DataTable } from "@/app/components/data-table";
 
 function parseCurrency(s: string): number {
   if (!s) return 0;
@@ -203,72 +186,7 @@ export default async function ViewPage({
       </div>
 
       {/* Data table */}
-      <div className="overflow-x-auto border border-black/10 bg-white">
-        <table className="w-full border-collapse text-[13px]">
-          <thead>
-            <tr className="border-b border-black/12 bg-[#faf9f6]">
-              {filteredHeaders.map((h) => (
-                <th
-                  key={h}
-                  className="whitespace-nowrap px-4 py-3.5 text-left font-['IBM_Plex_Mono',monospace] text-[11px] font-medium uppercase tracking-wider text-[#5d6168]"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.map((row, i) => (
-              <tr
-                key={i}
-                className="border-b border-black/6 transition-colors hover:bg-[#f9f7f2]"
-              >
-                {filteredHeaders.map((h) => (
-                  <td key={h} className="px-4 py-3.5">
-                    {h === "Stage" ? (
-                      <span
-                        className="inline-block whitespace-nowrap px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[10px] text-white"
-                        style={{ backgroundColor: STAGE_COLORS[row[h]] || "#5d6168" }}
-                      >
-                        {row[h] || "-"}
-                      </span>
-                    ) : h === "Type" ? (
-                      <span
-                        className="inline-block whitespace-nowrap border px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[10px]"
-                        style={{
-                          borderColor: TYPE_COLORS[row[h]] || "#5d6168",
-                          color: TYPE_COLORS[row[h]] || "#5d6168",
-                        }}
-                      >
-                        {row[h] || "-"}
-                      </span>
-                    ) : h === "Amount ($)" || h === "Weighted ($)" ? (
-                      <span className="font-['IBM_Plex_Mono',monospace] text-[13px] tabular-nums text-[#2c2f34]">
-                        {row[h] || "-"}
-                      </span>
-                    ) : h === "Prob" ? (
-                      <span className="font-['IBM_Plex_Mono',monospace] text-[12px] text-[#8a6d40]">
-                        {row[h] || "-"}
-                      </span>
-                    ) : h === "Profile / Notes" ? (
-                      <span
-                        className="block max-w-[300px] truncate text-[13px] text-[#5d6168]"
-                        title={row[h] || ""}
-                      >
-                        {row[h] || ""}
-                      </span>
-                    ) : h === "Name" ? (
-                      <span className="font-medium text-[#17191c]">{row[h] || ""}</span>
-                    ) : (
-                      <span className="text-[#2c2f34]">{row[h] || ""}</span>
-                    )}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable headers={filteredHeaders} rows={filteredRows} />
 
       {/* Footer note */}
       <div className="mt-8 border-t border-black/8 pt-6">
