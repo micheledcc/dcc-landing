@@ -20,44 +20,77 @@ export interface DriveFile {
   size: number;
   modifiedTime: string;
   isFolder: boolean;
+  children?: DriveFile[];
+  path?: string;
 }
 
+// Flat list (for room links -- no folders, just files)
 export async function listDriveFolder(
   folderId: string,
   allowedFileIds?: string[] | null
 ): Promise<DriveFile[]> {
-  const drive = google.drive({ version: "v3", auth: getAuth() });
-
-  const files: DriveFile[] = [];
-
-  async function walk(parentId: string) {
-    const res = await drive.files.list({
-      q: `'${parentId}' in parents and trashed = false`,
-      fields: "files(id, name, mimeType, size, modifiedTime)",
-      orderBy: "name",
-    });
-
-    for (const f of res.data.files || []) {
-      const isFolder = f.mimeType === "application/vnd.google-apps.folder";
-
-      if (isFolder) {
-        await walk(f.id!);
+  const tree = await listDriveFolderTree(folderId, allowedFileIds);
+  const flat: DriveFile[] = [];
+  function flatten(items: DriveFile[]) {
+    for (const f of items) {
+      if (f.isFolder && f.children) {
+        flatten(f.children);
       } else {
-        if (allowedFileIds && !allowedFileIds.includes(f.id!)) continue;
-        files.push({
-          id: f.id!,
-          name: f.name!,
-          mimeType: f.mimeType!,
-          size: parseInt(f.size || "0"),
-          modifiedTime: f.modifiedTime!,
-          isFolder: false,
-        });
+        flat.push(f);
       }
     }
   }
+  flatten(tree);
+  return flat;
+}
 
-  await walk(folderId);
-  return files;
+// Tree structure (for documents page -- preserves folders)
+export async function listDriveFolderTree(
+  folderId: string,
+  allowedFileIds?: string[] | null,
+  pathPrefix?: string
+): Promise<DriveFile[]> {
+  const drive = google.drive({ version: "v3", auth: getAuth() });
+
+  const res = await drive.files.list({
+    q: `'${folderId}' in parents and trashed = false`,
+    fields: "files(id, name, mimeType, size, modifiedTime)",
+    orderBy: "folder,name",
+  });
+
+  const items: DriveFile[] = [];
+
+  for (const f of res.data.files || []) {
+    const isFolder = f.mimeType === "application/vnd.google-apps.folder";
+    const path = pathPrefix ? `${pathPrefix}/${f.name!}` : f.name!;
+
+    if (isFolder) {
+      const children = await listDriveFolderTree(f.id!, allowedFileIds, path);
+      items.push({
+        id: f.id!,
+        name: f.name!,
+        mimeType: f.mimeType!,
+        size: 0,
+        modifiedTime: f.modifiedTime!,
+        isFolder: true,
+        children,
+        path,
+      });
+    } else {
+      if (allowedFileIds && !allowedFileIds.includes(f.id!)) continue;
+      items.push({
+        id: f.id!,
+        name: f.name!,
+        mimeType: f.mimeType!,
+        size: parseInt(f.size || "0"),
+        modifiedTime: f.modifiedTime!,
+        isFolder: false,
+        path,
+      });
+    }
+  }
+
+  return items;
 }
 
 export async function getDriveFileStream(
