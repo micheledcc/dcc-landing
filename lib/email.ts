@@ -50,7 +50,10 @@ export async function sendVerificationCode(
     </div>
   `;
 
+  const from = "Digital Collateral Corporation <noreply@digitalcollateralcorporation.com>";
+
   const message = [
+    `From: ${from}`,
     `To: ${to}`,
     `Subject: ${subject}`,
     `MIME-Version: 1.0`,
