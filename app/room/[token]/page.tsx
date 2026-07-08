@@ -1,6 +1,6 @@
 import "@/app/globals.css";
 import { getRoomLink } from "@/lib/room";
-import { listDriveFolder, getFileIcon, formatFileSize } from "@/lib/drive";
+import { listDriveFolderTree, getFileIcon, formatFileSize, type DriveFile } from "@/lib/drive";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 import { EmailGate } from "@/app/view/[token]/email-gate";
@@ -58,16 +58,19 @@ export default async function RoomPage({
   const allowedFileIds =
     typeof link.allowed_file_ids === "string" ? JSON.parse(link.allowed_file_ids) : link.allowed_file_ids;
 
-  let files;
+  let tree: DriveFile[];
   try {
-    files = await listDriveFolder(link.drive_folder_id, allowedFileIds);
+    tree = await listDriveFolderTree(link.drive_folder_id, allowedFileIds);
   } catch {
     return <Shell><p className="text-red-600">Unable to load files. Please try again later.</p></Shell>;
   }
 
-  const pdfs = files.filter((f) => f.mimeType === "application/pdf");
-  const images = files.filter((f) => f.mimeType.startsWith("image/"));
-  const others = files.filter((f) => f.mimeType !== "application/pdf" && !f.mimeType.startsWith("image/"));
+  function countFiles(items: DriveFile[]): number {
+    let c = 0;
+    for (const f of items) { if (f.isFolder && f.children) c += countFiles(f.children); else c++; }
+    return c;
+  }
+  const totalFiles = countFiles(tree);
 
   return (
     <Shell>
@@ -79,51 +82,13 @@ export default async function RoomPage({
           Data Room
         </h1>
         <p className="max-w-[54ch] text-[15px] leading-relaxed text-[#5d6168]">
-          {files.length} document{files.length !== 1 ? "s" : ""} available for review. Click to view or download.
+          {totalFiles} document{totalFiles !== 1 ? "s" : ""} available for review. Click to view or download.
         </p>
       </div>
 
-      {/* File Grid */}
-      <div className="grid gap-3">
-        {[...pdfs, ...images, ...others].map((file) => {
-          const icon = getFileIcon(file.mimeType);
-          const size = formatFileSize(file.size);
-          const isViewable = file.mimeType === "application/pdf" || file.mimeType.startsWith("image/");
-          const canDownload = link.allow_download !== false;
-          const href = isViewable
-            ? `/room/${token}/${file.id}${viewerEmail ? `?email=${encodeURIComponent(viewerEmail)}` : ""}`
-            : canDownload
-              ? `/api/room/${token}/file/${file.id}?download=1`
-              : "#";
-
-          return (
-            <Link
-              key={file.id}
-              href={href}
-              {...(!isViewable ? { target: "_blank" } : {})}
-              className="flex items-center gap-5 border border-black/10 bg-white px-6 py-5 no-underline text-inherit transition-colors hover:border-black/20 hover:bg-[#faf9f6]"
-            >
-              <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center font-['IBM_Plex_Mono',monospace] text-[11px] font-medium tracking-wide text-white"
-                style={{
-                  backgroundColor:
-                    icon === "PDF" ? "#c44" : icon === "IMG" ? "#3a7c5f" : icon === "XLS" ? "#2d6a4f" : icon === "DOC" ? "#1b4332" : "#5d6168",
-                }}
-              >
-                {icon}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[15px] font-medium text-[#17191c]">{file.name}</div>
-                <div className="mt-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#5d6168]">
-                  {size} &middot; {isViewable ? "Click to view" : canDownload ? "Click to download" : "View only"}
-                </div>
-              </div>
-              <div className="shrink-0 font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#b9b2a4]">
-                {isViewable ? "View &rarr;" : "Download"}
-              </div>
-            </Link>
-          );
-        })}
+      {/* File Tree */}
+      <div className="grid gap-2">
+        <FileTree items={tree} depth={0} token={token} viewerEmail={viewerEmail} canDownload={link.allow_download !== false} />
       </div>
 
       <div className="mt-8 border-t border-black/8 pt-6">
@@ -133,6 +98,79 @@ export default async function RoomPage({
         </p>
       </div>
     </Shell>
+  );
+}
+
+function FileTree({ items, depth, token, viewerEmail, canDownload }: { items: DriveFile[]; depth: number; token: string; viewerEmail?: string; canDownload: boolean }) {
+  return (
+    <>
+      {items.map((item) => {
+        if (item.isFolder) {
+          return (
+            <div key={item.id}>
+              {/* Folder header */}
+              <div className="flex items-center gap-3 px-4 py-3 md:px-6" style={{ paddingLeft: `${depth * 20 + 16}px` }}>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-[#8a6d40]/30">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8a6d40" strokeWidth="1.5">
+                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="font-['IBM_Plex_Mono',monospace] text-[12px] font-medium uppercase tracking-wider text-[#3a3d42]">
+                    {item.name}
+                  </div>
+                  <div className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#b9b2a4]">
+                    {item.children?.length || 0} file{(item.children?.length || 0) !== 1 ? "s" : ""}
+                  </div>
+                </div>
+              </div>
+              {/* Folder children */}
+              {item.children && (
+                <FileTree items={item.children} depth={depth + 1} token={token} viewerEmail={viewerEmail} canDownload={canDownload} />
+              )}
+            </div>
+          );
+        }
+
+        const icon = getFileIcon(item.mimeType);
+        const size = formatFileSize(item.size);
+        const isViewable = item.mimeType === "application/pdf" || item.mimeType.startsWith("image/");
+        const href = isViewable
+          ? `/room/${token}/${item.id}${viewerEmail ? `?email=${encodeURIComponent(viewerEmail)}` : ""}`
+          : canDownload
+            ? `/api/room/${token}/file/${item.id}?download=1`
+            : "#";
+
+        return (
+          <Link
+            key={item.id}
+            href={href}
+            {...(!isViewable ? { target: "_blank" } : {})}
+            className="flex items-center gap-4 border border-black/10 bg-white px-4 py-4 no-underline text-inherit transition-colors hover:border-black/20 hover:bg-[#faf9f6] md:gap-5 md:px-6 md:py-5"
+            style={{ marginLeft: `${depth * 20}px` }}
+          >
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center font-['IBM_Plex_Mono',monospace] text-[10px] font-medium tracking-wide text-white md:h-12 md:w-12 md:text-[11px]"
+              style={{
+                backgroundColor:
+                  icon === "PDF" ? "#c44" : icon === "IMG" ? "#3a7c5f" : icon === "XLS" ? "#2d6a4f" : icon === "DOC" ? "#1b4332" : "#5d6168",
+              }}
+            >
+              {icon}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[14px] font-medium text-[#17191c] md:text-[15px]">{item.name}</div>
+              <div className="mt-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#5d6168]">
+                {size} &middot; {isViewable ? "Click to view" : canDownload ? "Click to download" : "View only"}
+              </div>
+            </div>
+            <div className="hidden shrink-0 font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#b9b2a4] sm:block">
+              {isViewable ? "View →" : canDownload ? "Download" : ""}
+            </div>
+          </Link>
+        );
+      })}
+    </>
   );
 }
 

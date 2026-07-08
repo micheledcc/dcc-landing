@@ -7,6 +7,8 @@ interface DriveFile {
   name: string;
   icon: string;
   size: string;
+  isFolder?: boolean;
+  depth?: number;
 }
 
 export function RoomManager({
@@ -119,27 +121,35 @@ export function RoomManager({
               Files to include
             </label>
             <div className="mb-2 flex gap-3">
-              <button type="button" onClick={() => setSelectedFiles(driveFiles.map((f) => f.id))} className="cursor-pointer border-none bg-transparent text-[11px] text-[#8a6d40] underline">All</button>
+              <button type="button" onClick={() => setSelectedFiles(driveFiles.filter((f) => !f.isFolder).map((f) => f.id))} className="cursor-pointer border-none bg-transparent text-[11px] text-[#8a6d40] underline">All</button>
               <button type="button" onClick={() => setSelectedFiles([])} className="cursor-pointer border-none bg-transparent text-[11px] text-[#5d6168] underline">None</button>
             </div>
-            <div className="space-y-1.5">
-              {driveFiles.map((file) => (
-                <label
-                  key={file.id}
-                  className={`flex cursor-pointer items-center gap-3 border px-3 py-2 ${
-                    selectedFiles.includes(file.id)
-                      ? "border-[#8a6d40]/40 bg-[#8a6d40]/5"
-                      : "border-black/8 bg-white"
-                  }`}
-                >
-                  <input type="checkbox" checked={selectedFiles.includes(file.id)} onChange={() => toggleFile(file.id)} className="accent-[#8a6d40]" />
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center bg-[#5d6168] font-['IBM_Plex_Mono',monospace] text-[8px] text-white" style={{ backgroundColor: file.icon === "PDF" ? "#c44" : file.icon === "IMG" ? "#3a7c5f" : file.icon === "XLS" ? "#2d6a4f" : "#5d6168" }}>
-                    {file.icon}
-                  </div>
-                  <span className="text-[13px] text-[#17191c]">{file.name}</span>
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#b9b2a4]">{file.size}</span>
-                </label>
-              ))}
+            <div className="space-y-1">
+              {driveFiles.map((file) => {
+                if (file.isFolder) {
+                  return (
+                    <div key={file.id} className="flex items-center gap-2 px-3 py-1.5" style={{ paddingLeft: `${(file.depth || 0) * 20 + 12}px` }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a6d40" strokeWidth="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" /></svg>
+                      <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-medium uppercase tracking-wider text-[#3a3d42]">{file.name}</span>
+                    </div>
+                  );
+                }
+                const iconBg = file.icon === "PDF" ? "#c44" : file.icon === "IMG" ? "#3a7c5f" : file.icon === "XLS" ? "#2d6a4f" : file.icon === "DOC" ? "#1b4332" : "#5d6168";
+                return (
+                  <label
+                    key={file.id}
+                    className={`flex cursor-pointer items-center gap-3 border px-3 py-2 ${
+                      selectedFiles.includes(file.id) ? "border-[#8a6d40]/40 bg-[#8a6d40]/5" : "border-black/8 bg-white"
+                    }`}
+                    style={{ marginLeft: `${(file.depth || 0) * 20}px` }}
+                  >
+                    <input type="checkbox" checked={selectedFiles.includes(file.id)} onChange={() => toggleFile(file.id)} className="accent-[#8a6d40]" />
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center font-['IBM_Plex_Mono',monospace] text-[8px] text-white" style={{ backgroundColor: iconBg }}>{file.icon}</div>
+                    <span className="text-[13px] text-[#17191c]">{file.name}</span>
+                    <span className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#b9b2a4]">{file.size}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
