@@ -12,6 +12,7 @@ export default async function DashboardLayout({
 
   const navItems = [
     { href: "/dashboard", label: "Pipeline" },
+    { href: "/dashboard/board", label: "Board" },
     { href: "/dashboard/documents", label: "Documents" },
     { href: "/dashboard/sharing", label: "Sharing" },
     ...(auth?.role === "owner" ? [{ href: "/dashboard/team", label: "Team" }] : []),
