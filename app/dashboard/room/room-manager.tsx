@@ -32,6 +32,8 @@ export function RoomManager({
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [expandedLink, setExpandedLink] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   async function handleCreate() {
     setSaving(true);
@@ -72,6 +74,17 @@ export function RoomManager({
     if (!confirm("Permanently delete this link and all its analytics? This cannot be undone.")) return;
     await fetch(`/api/room/${id}?permanent=1`, { method: "DELETE" });
     setLinks(links.filter((l) => l.id !== id));
+  }
+
+  async function handleRename(id: string) {
+    if (!editValue.trim()) { setEditingLabel(null); return; }
+    await fetch(`/api/room/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: editValue.trim() }),
+    });
+    setLinks(links.map((l) => (l.id === id ? { ...l, label: editValue.trim() } : l)));
+    setEditingLabel(null);
   }
 
   function copyLink(token: string) {
@@ -210,7 +223,30 @@ export function RoomManager({
               <div className="flex items-center justify-between px-5 py-4">
                 <div className="flex-1 cursor-pointer" onClick={() => setExpandedLink(isExpanded ? null : link.id)}>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium">{link.label}</span>
+                    {editingLabel === link.id ? (
+                      <form
+                        className="flex items-center gap-1.5"
+                        onSubmit={(e) => { e.preventDefault(); handleRename(link.id); }}
+                      >
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          autoFocus
+                          onBlur={() => handleRename(link.id)}
+                          onKeyDown={(e) => { if (e.key === "Escape") setEditingLabel(null); }}
+                          className="border border-[#8a6d40] bg-white px-2 py-0.5 text-sm font-medium outline-none"
+                        />
+                      </form>
+                    ) : (
+                      <span
+                        className="cursor-pointer text-sm font-medium hover:text-[#8a6d40]"
+                        onClick={(e) => { e.stopPropagation(); setEditingLabel(link.id); setEditValue(link.label); }}
+                        title="Click to rename"
+                      >
+                        {link.label}
+                      </span>
+                    )}
                     <span className={`font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider ${statusColor}`}>{status}</span>
                     {link.allow_download === false && (
                       <span className="font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#b9b2a4]">View only</span>
