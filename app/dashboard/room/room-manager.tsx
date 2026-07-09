@@ -68,6 +68,12 @@ export function RoomManager({
     setLinks(links.map((l) => (l.id === id ? { ...l, is_active: false } : l)));
   }
 
+  async function handleDelete(id: string) {
+    if (!confirm("Permanently delete this link and all its analytics? This cannot be undone.")) return;
+    await fetch(`/api/room/${id}?permanent=1`, { method: "DELETE" });
+    setLinks(links.filter((l) => l.id !== id));
+  }
+
   function copyLink(token: string) {
     navigator.clipboard.writeText(`${window.location.origin}/room/${token}`);
     setCopied(token);
@@ -237,6 +243,9 @@ export function RoomManager({
                         </button>
                       </>
                     )}
+                    <button onClick={() => handleDelete(link.id)} className="cursor-pointer border border-red-200 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-red-700 hover:bg-red-50 hover:border-red-400">
+                      Delete
+                    </button>
                     <button
                       onClick={() => setExpandedLink(isExpanded ? null : link.id)}
                       className="cursor-pointer border border-black/15 bg-white px-2 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#5d6168] hover:border-black/30"

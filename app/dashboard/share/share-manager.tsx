@@ -69,6 +69,12 @@ export function ShareManager({
     setLinks(links.map((l) => (l.id === id ? { ...l, is_active: false } : l)));
   }
 
+  async function handleDelete(id: string) {
+    if (!confirm("Permanently delete this link and all its analytics? This cannot be undone.")) return;
+    await fetch(`/api/share/${id}?permanent=1`, { method: "DELETE" });
+    setLinks(links.filter((l) => l.id !== id));
+  }
+
   function copyLink(token: string) {
     const url = `${window.location.origin}/view/${token}`;
     navigator.clipboard.writeText(url);
@@ -331,6 +337,12 @@ export function ShareManager({
                           </button>
                         </>
                       )}
+                      <button
+                        onClick={() => handleDelete(link.id)}
+                        className="cursor-pointer border border-red-200 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-red-700 hover:bg-red-50 hover:border-red-400"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>
