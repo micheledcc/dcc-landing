@@ -1,17 +1,20 @@
 import { getAuth } from "@/lib/auth";
-import { readPipeline } from "@/lib/sheets";
+import { readAllPipeline } from "@/lib/sheets";
 import { listRoomLinks, getAllRoomAnalytics } from "@/lib/room";
+import { listDriveFolderTree, getFileIcon, formatFileSize, type DriveFile } from "@/lib/drive";
 import { PipelineBoard } from "./pipeline-board";
 
 export const dynamic = "force-dynamic";
+
+const DRIVE_FOLDER_ID = "1GDls9NYWeAuk1y3UN4TyEhbgl7nFX-se";
 
 export default async function BoardPage() {
   const auth = await getAuth();
   if (!auth) return null;
 
-  let data: { headers: string[]; rows: Record<string, string>[] };
+  let allRows: Awaited<ReturnType<typeof readAllPipeline>> = [];
   try {
-    data = await readPipeline();
+    allRows = await readAllPipeline();
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return (
@@ -25,7 +28,7 @@ export default async function BoardPage() {
     );
   }
 
-  // Get room links + analytics to compute engagement per investor
+  // Room links + analytics for engagement signals
   let roomLinks: any[] = [];
   let roomAnalytics: Record<string, any> = {};
   try {
@@ -35,7 +38,7 @@ export default async function BoardPage() {
     ]);
   } catch {}
 
-  // Build engagement map: investor name → engagement data
+  // Build engagement map
   const engagementMap: Record<string, {
     hasLink: boolean;
     linkToken?: string;
@@ -50,14 +53,12 @@ export default async function BoardPage() {
     const stats = roomAnalytics[link.id];
     const label = (link.label || "").toLowerCase();
 
-    // Match by investor name in label
-    for (const row of data.rows) {
-      const name = (row["Name"] || "").toLowerCase();
+    for (const row of allRows) {
+      const name = row.name.toLowerCase();
       if (name && label.includes(name)) {
         const lastAct = stats?.last_activity;
         const isHot = lastAct && (Date.now() - new Date(lastAct).getTime()) < 24 * 60 * 60 * 1000;
-
-        engagementMap[row["Name"]] = {
+        engagementMap[row.name] = {
           hasLink: true,
           linkToken: link.token,
           views: stats?.views || 0,
@@ -69,11 +70,31 @@ export default async function BoardPage() {
     }
   }
 
+  // Drive files for share dialog
+  let driveFiles: { id: string; name: string; icon: string; size: string; isFolder?: boolean; depth?: number }[] = [];
+  try {
+    const tree = await listDriveFolderTree(DRIVE_FOLDER_ID);
+    function flatten(items: DriveFile[], depth: number) {
+      for (const f of items) {
+        driveFiles.push({
+          id: f.id,
+          name: f.name,
+          icon: f.isFolder ? "DIR" : getFileIcon(f.mimeType),
+          size: f.isFolder ? "" : formatFileSize(f.size),
+          isFolder: f.isFolder,
+          depth,
+        });
+        if (f.isFolder && f.children) flatten(f.children, depth + 1);
+      }
+    }
+    flatten(tree, 0);
+  } catch {}
+
   return (
     <PipelineBoard
-      headers={data.headers}
-      initialRows={data.rows}
+      allRows={allRows}
       engagement={engagementMap}
+      driveFiles={driveFiles}
     />
   );
 }

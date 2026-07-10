@@ -11,13 +11,21 @@ export async function PATCH(
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { label } = await req.json();
+  const body = await req.json();
 
-  if (!label || !label.trim()) {
-    return NextResponse.json({ error: "Label is required" }, { status: 400 });
+  if (body.label !== undefined) {
+    if (!body.label.trim()) return NextResponse.json({ error: "Label is required" }, { status: 400 });
+    await sql`UPDATE room_links SET label = ${body.label.trim()} WHERE id = ${id}`;
   }
 
-  await sql`UPDATE room_links SET label = ${label.trim()} WHERE id = ${id}`;
+  if (body.allowed_file_ids !== undefined) {
+    const fileIds = body.allowed_file_ids === null ? null : JSON.stringify(body.allowed_file_ids);
+    await sql`UPDATE room_links SET allowed_file_ids = ${fileIds} WHERE id = ${id}`;
+  }
+
+  if (body.allow_download !== undefined) {
+    await sql`UPDATE room_links SET allow_download = ${body.allow_download} WHERE id = ${id}`;
+  }
   return NextResponse.json({ ok: true });
 }
 

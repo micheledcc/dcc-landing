@@ -1,181 +1,162 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import type { PipelineRow } from "@/lib/sheets";
+import { ShareDialog } from "./share-dialog";
 
 const STAGE_ORDER = [
-  "1 - Outreach",
-  "2 - Pitch",
-  "3 - Internal IC",
-  "4 - Final DD",
-  "5 - Verbal Commit",
-  "6 - Signed",
-  "7 - Wired",
-  "Advisor",
+  "1 - Outreach", "2 - Pitch", "3 - Internal IC", "4 - Final DD",
+  "5 - Verbal Commit", "6 - Signed", "7 - Wired", "Advisor",
 ];
 
 const STAGE_COLORS: Record<string, string> = {
-  "1 - Outreach": "#b9b2a4",
-  "2 - Pitch": "#a09484",
-  "3 - Internal IC": "#8a6d40",
-  "4 - Final DD": "#6d5530",
-  "5 - Verbal Commit": "#3a7c5f",
-  "6 - Signed": "#2d6a4f",
-  "7 - Wired": "#1b4332",
-  Advisor: "#5d6168",
-  "0 - Passed": "#c44",
+  "1 - Outreach": "#b9b2a4", "2 - Pitch": "#a09484", "3 - Internal IC": "#8a6d40",
+  "4 - Final DD": "#6d5530", "5 - Verbal Commit": "#3a7c5f", "6 - Signed": "#2d6a4f",
+  "7 - Wired": "#1b4332", Advisor: "#5d6168", "0 - Passed": "#c44",
 };
 
-const TYPE_COLORS: Record<string, string> = {
-  Angel: "#8a6d40",
-  VC: "#17191c",
-  Advisor: "#5d6168",
+const SOURCE_BORDER: Record<string, string> = {
+  commitments: "#8a6d40",
+  "angels-pipeline": "#7c3aed",
+  "vc-pipeline": "#17191c",
+};
+
+const SOURCE_LABEL: Record<string, string> = {
+  commitments: "MC",
+  "angels-pipeline": "AP",
+  "vc-pipeline": "VP",
+};
+
+const PROB_MAP: Record<string, string> = {
+  "1 - Outreach": "10%", "2 - Pitch": "25%", "3 - Internal IC": "40%",
+  "4 - Final DD": "60%", "5 - Verbal Commit": "90%", "6 - Signed": "95%",
+  "7 - Wired": "100%", Advisor: "", "0 - Passed": "0%",
 };
 
 function parseCurrency(s: string): number {
-  if (!s) return 0;
-  return parseFloat(s.replace(/[$,]/g, "")) || 0;
+  return parseFloat((s || "").replace(/[$,]/g, "")) || 0;
 }
 
 function formatCurrency(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  if (n === 0) return "$0";
-  return `$${n.toLocaleString()}`;
+  return n === 0 ? "$0" : `$${n.toLocaleString()}`;
 }
 
 interface Engagement {
-  hasLink: boolean;
-  linkToken?: string;
-  views: number;
-  downloads: number;
-  lastActivity?: string;
-  heat: "hot" | "warm" | "cold" | "none";
+  hasLink: boolean; linkToken?: string; views: number; downloads: number;
+  lastActivity?: string; heat: "hot" | "warm" | "cold" | "none";
 }
 
-interface PipelineBoardProps {
-  headers: string[];
-  initialRows: Record<string, string>[];
+interface DriveFile {
+  id: string; name: string; icon: string; size: string; isFolder?: boolean; depth?: number;
+}
+
+export function PipelineBoard({
+  allRows,
+  engagement,
+  driveFiles,
+}: {
+  allRows: PipelineRow[];
   engagement: Record<string, Engagement>;
-}
-
-export function PipelineBoard({ headers, initialRows, engagement }: PipelineBoardProps) {
-  const [rows, setRows] = useState(initialRows);
-  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  driveFiles: DriveFile[];
+}) {
+  const [rows, setRows] = useState(allRows);
+  const [draggedKey, setDraggedKey] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
-  const [expandedCard, setExpandedCard] = useState<number | null>(null);
-  const [editField, setEditField] = useState<{ idx: number; field: string } | null>(null);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [editField, setEditField] = useState<{ key: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
-  const [sharingIdx, setSharingIdx] = useState<number | null>(null);
-  const [shareResult, setShareResult] = useState<string | null>(null);
+  const [shareTarget, setShareTarget] = useState<PipelineRow | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  type CardRow = Record<string, string> & { _idx: number };
+  // Unique key for each row
+  const rowKey = (r: PipelineRow) => `${r.source}:${r.sourceRowIndex}`;
 
-  // Group rows by stage
+  // Group by stage
   const columns = STAGE_ORDER.map((stage) => ({
     stage,
-    cards: rows
-      .map((r, i) => ({ ...r, _idx: i } as CardRow))
-      .filter((r) => r["Stage"] === stage),
+    cards: rows.filter((r) => r.stage === stage),
   }));
 
-  // Passed investors (separate)
-  const passed = rows
-    .map((r, i) => ({ ...r, _idx: i } as CardRow))
-    .filter((r) => r["Stage"] === "0 - Passed");
-
-  // Global stats
-  const totalCommitted = rows.reduce((s, r) => s + parseCurrency(r["Amount ($)"]), 0);
-  const totalWeighted = rows.reduce((s, r) => s + parseCurrency(r["Weighted ($)"]), 0);
+  const passed = rows.filter((r) => r.stage === "0 - Passed");
+  const totalAmount = rows.reduce((s, r) => s + parseCurrency(r.amount), 0);
+  const totalWeighted = rows.reduce((s, r) => s + parseCurrency(r.weighted), 0);
 
   // Drag handlers
-  const handleDragStart = useCallback((idx: number) => {
-    setDraggedIdx(idx);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent, stage: string) => {
-    e.preventDefault();
-    setDropTarget(stage);
-  }, []);
-
-  const handleDragLeave = useCallback(() => {
-    setDropTarget(null);
-  }, []);
+  const handleDragStart = useCallback((key: string) => setDraggedKey(key), []);
+  const handleDragOver = useCallback((e: React.DragEvent, stage: string) => { e.preventDefault(); setDropTarget(stage); }, []);
+  const handleDragLeave = useCallback(() => setDropTarget(null), []);
 
   const handleDrop = useCallback(async (stage: string) => {
-    if (draggedIdx === null) return;
+    if (!draggedKey) return;
     setDropTarget(null);
-
-    const row = rows[draggedIdx];
-    if (row["Stage"] === stage) { setDraggedIdx(null); return; }
+    const idx = rows.findIndex((r) => rowKey(r) === draggedKey);
+    if (idx === -1) return;
+    const row = rows[idx];
+    if (row.stage === stage) { setDraggedKey(null); return; }
 
     // Optimistic update
     const newRows = [...rows];
-    newRows[draggedIdx] = { ...row, Stage: stage };
-
-    // Auto-set probability based on stage
-    const probMap: Record<string, string> = {
-      "1 - Outreach": "10%", "2 - Pitch": "25%", "3 - Internal IC": "40%",
-      "4 - Final DD": "60%", "5 - Verbal Commit": "90%", "6 - Signed": "95%",
-      "7 - Wired": "100%", "Advisor": "", "0 - Passed": "0%",
-    };
-    if (probMap[stage] !== undefined) {
-      newRows[draggedIdx] = { ...newRows[draggedIdx], Prob: probMap[stage] };
-    }
-
+    newRows[idx] = { ...row, stage, prob: PROB_MAP[stage] ?? row.prob };
     setRows(newRows);
-    setDraggedIdx(null);
+    setDraggedKey(null);
 
-    // Persist
-    await fetch("/api/pipeline", {
-      method: "PATCH",
+    // Persist to correct sheet tab
+    const updates: Record<string, string> = { Stage: stage };
+    if (PROB_MAP[stage] !== undefined) updates["Prob"] = PROB_MAP[stage];
+
+    await fetch("/api/pipeline/update", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        rowIndex: draggedIdx,
-        updates: { Stage: stage, ...(probMap[stage] !== undefined ? { Prob: probMap[stage] } : {}) },
-      }),
+      body: JSON.stringify({ sourceTab: row.sourceTab, rowIndex: row.sourceRowIndex, updates }),
     });
-  }, [draggedIdx, rows]);
+  }, [draggedKey, rows]);
 
   // Inline edit
-  async function handleSaveField(idx: number, field: string, value: string) {
+  async function handleSaveField(row: PipelineRow, field: string, value: string) {
     setSaving(true);
-    const newRows = [...rows];
-    newRows[idx] = { ...newRows[idx], [field]: value };
-    setRows(newRows);
+    const idx = rows.findIndex((r) => rowKey(r) === rowKey(row));
+    if (idx >= 0) {
+      const newRows = [...rows];
+      (newRows[idx] as any)[field] = value;
+      setRows(newRows);
+    }
     setEditField(null);
 
-    await fetch("/api/pipeline", {
-      method: "PATCH",
+    // Map normalized field name to sheet column
+    const fieldMap: Record<string, string> = {
+      name: row.source === "vc-pipeline" ? "Fund" : "Name",
+      amount: row.source === "commitments" ? "Amount ($)" : "Target ($)",
+      stage: "Stage", prob: "Prob", nextAction: "Next Action",
+      owner: "Owner", notes: row.source === "commitments" ? "Profile / Notes" : "Notes",
+      email: "Email", type: "Type",
+    };
+
+    await fetch("/api/pipeline/update", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rowIndex: idx, updates: { [field]: value } }),
+      body: JSON.stringify({
+        sourceTab: row.sourceTab,
+        rowIndex: row.sourceRowIndex,
+        updates: { [fieldMap[field] || field]: value },
+      }),
     });
     setSaving(false);
   }
 
-  // One-click share
-  async function handleShareRoom(idx: number) {
-    setSharingIdx(idx);
-    const row = rows[idx];
-    const res = await fetch("/api/room", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        label: row["Name"],
-        expiresInDays: 30,
-      }),
-    });
-    if (res.ok) {
-      const { link } = await res.json();
-      const url = `${window.location.origin}/room/${link.token}`;
-      navigator.clipboard.writeText(url);
-      setShareResult(url);
-      setTimeout(() => setShareResult(null), 5000);
-    }
-    setSharingIdx(null);
-  }
-
-  const editableFields = headers.filter((h) => !h.startsWith("_") && h !== "Weighted ($)");
+  const editableFields: { key: keyof PipelineRow; label: string }[] = [
+    { key: "name", label: "Name" },
+    { key: "type", label: "Type" },
+    { key: "amount", label: "Amount" },
+    { key: "stage", label: "Stage" },
+    { key: "prob", label: "Probability" },
+    { key: "nextAction", label: "Next Action" },
+    { key: "owner", label: "Owner" },
+    { key: "email", label: "Email" },
+    { key: "notes", label: "Notes" },
+  ];
 
   return (
     <div>
@@ -184,175 +165,135 @@ export function PipelineBoard({ headers, initialRows, engagement }: PipelineBoar
         <div>
           <h1 className="font-['Spectral',Georgia,serif] text-3xl font-light">Pipeline Board</h1>
           <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[11px] uppercase tracking-wider text-[#8a6d40]">
-            {rows.length} investors &middot; {formatCurrency(totalCommitted)} committed &middot; {formatCurrency(totalWeighted)} weighted
+            {rows.length} investors · {formatCurrency(totalAmount)} total · {formatCurrency(totalWeighted)} weighted
           </p>
         </div>
-        <a
-          href="/dashboard"
-          className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#5d6168] no-underline hover:text-[#17191c]"
-        >
-          &larr; Table view
+        <a href="/dashboard" className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#5d6168] no-underline hover:text-[#17191c]">
+          ← Table view
         </a>
       </div>
 
-      {/* Share result toast */}
-      {shareResult && (
+      {/* Toast */}
+      {toast && (
         <div className="mb-4 border border-emerald-300 bg-emerald-50 px-4 py-3 font-['IBM_Plex_Mono',monospace] text-[12px] text-emerald-800">
-          Link copied to clipboard: <span className="font-medium">{shareResult}</span>
+          {toast}
         </div>
       )}
 
-      {/* Kanban board */}
+      {/* Share Dialog */}
+      {shareTarget && (
+        <ShareDialog
+          investorName={shareTarget.name}
+          investorEmail={shareTarget.email}
+          driveFiles={driveFiles}
+          onClose={() => setShareTarget(null)}
+          onCreated={(url) => {
+            setShareTarget(null);
+            setToast(`Link copied: ${url}`);
+            setTimeout(() => setToast(null), 5000);
+          }}
+        />
+      )}
+
+      {/* Kanban */}
       <div className="overflow-x-auto pb-4">
-        <div className="flex gap-3" style={{ minWidth: `${STAGE_ORDER.length * 240}px` }}>
+        <div className="flex gap-2.5" style={{ minWidth: `${STAGE_ORDER.length * 230}px` }}>
           {columns.map(({ stage, cards }) => {
-            const colTotal = cards.reduce((s, c) => s + parseCurrency(c["Amount ($)"]), 0);
+            const colTotal = cards.reduce((s, c) => s + parseCurrency(c.amount), 0);
             const isDropping = dropTarget === stage;
             const color = STAGE_COLORS[stage] || "#5d6168";
 
             return (
               <div
                 key={stage}
-                className={`flex w-[240px] shrink-0 flex-col rounded-sm transition-colors ${
-                  isDropping ? "bg-[#8a6d40]/10" : "bg-black/[0.03]"
-                }`}
+                className={`flex w-[230px] shrink-0 flex-col transition-colors ${isDropping ? "bg-[#8a6d40]/10" : "bg-black/[0.03]"}`}
                 onDragOver={(e) => handleDragOver(e, stage)}
                 onDragLeave={handleDragLeave}
                 onDrop={() => handleDrop(stage)}
               >
                 {/* Column header */}
-                <div className="sticky top-0 z-10 px-3 pb-2 pt-3">
-                  <div className="flex items-center gap-2">
+                <div className="px-2.5 pb-1.5 pt-2.5">
+                  <div className="flex items-center gap-1.5">
                     <div className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-                    <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-medium uppercase tracking-wider text-[#3a3d42]">
+                    <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-medium uppercase tracking-wider text-[#3a3d42]">
                       {stage.replace(/^\d+ - /, "")}
                     </span>
                   </div>
-                  <div className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#8a6d40]">
-                    {cards.length} &middot; {formatCurrency(colTotal)}
+                  <div className="mt-0.5 font-['IBM_Plex_Mono',monospace] text-[9px] text-[#8a6d40]">
+                    {cards.length} · {formatCurrency(colTotal)}
                   </div>
                 </div>
 
                 {/* Cards */}
-                <div className="flex flex-1 flex-col gap-2 px-2 pb-2">
+                <div className="flex flex-1 flex-col gap-1.5 px-1.5 pb-2">
                   {cards.map((card) => {
-                    const eng = engagement[card["Name"]];
-                    const isExpanded = expandedCard === card._idx;
-                    const isStale = card["_modified_at"] && (Date.now() - new Date(card["_modified_at"]).getTime()) > 7 * 24 * 60 * 60 * 1000;
+                    const key = rowKey(card);
+                    const eng = engagement[card.name];
+                    const isExpanded = expandedCard === key;
+                    const borderColor = SOURCE_BORDER[card.source] || "#5d6168";
 
                     return (
                       <div
-                        key={card._idx}
+                        key={key}
                         draggable
-                        onDragStart={() => handleDragStart(card._idx)}
-                        className={`cursor-grab border bg-white transition-shadow active:cursor-grabbing ${
-                          draggedIdx === card._idx ? "border-[#8a6d40] opacity-50 shadow-lg" : "border-black/10 shadow-sm hover:shadow-md"
+                        onDragStart={() => handleDragStart(key)}
+                        className={`cursor-grab border-l-[3px] border bg-white transition-shadow active:cursor-grabbing ${
+                          draggedKey === key ? "opacity-50 shadow-lg" : "shadow-sm hover:shadow-md"
                         }`}
+                        style={{ borderLeftColor: borderColor, borderTopColor: "rgba(0,0,0,0.08)", borderRightColor: "rgba(0,0,0,0.08)", borderBottomColor: "rgba(0,0,0,0.08)" }}
                       >
-                        {/* Card summary */}
-                        <div
-                          className="px-3 py-2.5"
-                          onClick={() => setExpandedCard(isExpanded ? null : card._idx)}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-[13px] font-medium leading-tight text-[#17191c]">{card["Name"]}</span>
+                        {/* Card face */}
+                        <div className="px-2.5 py-2" onClick={() => setExpandedCard(isExpanded ? null : key)}>
+                          <div className="flex items-start justify-between gap-1.5">
+                            <span className="text-[12px] font-medium leading-tight">{card.name}</span>
                             <div className="flex shrink-0 items-center gap-1">
-                              {/* Engagement heat */}
-                              {eng?.heat === "hot" && <span title="Active in last 24h" className="text-[12px]">🔥</span>}
-                              {eng?.heat === "warm" && <span title="Has viewed data room" className="h-2 w-2 rounded-full bg-[#8a6d40]" />}
-                              {eng?.heat === "cold" && <span title="Link sent, not viewed" className="h-2 w-2 rounded-full border border-[#b9b2a4]" />}
-                              {/* Stale */}
-                              {isStale && <span title="Not updated in 7+ days" className="h-2 w-2 rounded-full bg-amber-400" />}
+                              {eng?.heat === "hot" && <span title="Active <24h">🔥</span>}
+                              {eng?.heat === "warm" && <span title="Has viewed" className="h-1.5 w-1.5 rounded-full bg-[#8a6d40]" />}
+                              {eng?.heat === "cold" && <span title="Not viewed" className="h-1.5 w-1.5 rounded-full border border-[#b9b2a4]" />}
+                              <span className="font-['IBM_Plex_Mono',monospace] text-[8px] text-[#b9b2a4]" title={card.source}>{SOURCE_LABEL[card.source]}</span>
                             </div>
                           </div>
-                          <div className="mt-1.5 flex items-center gap-2">
-                            <span
-                              className="border px-1.5 py-0.5 font-['IBM_Plex_Mono',monospace] text-[9px]"
-                              style={{ borderColor: TYPE_COLORS[card["Type"]] || "#5d6168", color: TYPE_COLORS[card["Type"]] || "#5d6168" }}
-                            >
-                              {card["Type"]}
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="border px-1 py-px font-['IBM_Plex_Mono',monospace] text-[8px]" style={{ borderColor: card.type === "VC" ? "#17191c" : card.type === "Angel" ? "#8a6d40" : "#5d6168", color: card.type === "VC" ? "#17191c" : card.type === "Angel" ? "#8a6d40" : "#5d6168" }}>
+                              {card.type}
                             </span>
-                            <span className="font-['IBM_Plex_Mono',monospace] text-[11px] tabular-nums text-[#3a3d42]">
-                              {card["Amount ($)"] || "$0"}
-                            </span>
+                            <span className="font-['IBM_Plex_Mono',monospace] text-[10px] tabular-nums text-[#3a3d42]">{card.amount || "$0"}</span>
                           </div>
-                          {card["Next Action"] && (
-                            <div className="mt-1.5 truncate font-['IBM_Plex_Mono',monospace] text-[10px] text-[#5d6168]">
-                              → {card["Next Action"]}
-                            </div>
+                          {card.nextAction && (
+                            <div className="mt-1 truncate font-['IBM_Plex_Mono',monospace] text-[9px] text-[#5d6168]">→ {card.nextAction}</div>
                           )}
-                          {eng?.hasLink && eng.views > 0 && (
-                            <div className="mt-1 font-['IBM_Plex_Mono',monospace] text-[9px] text-[#8a6d40]">
-                              {eng.views} view{eng.views !== 1 ? "s" : ""}
-                              {eng.lastActivity && ` · ${new Date(eng.lastActivity).toLocaleDateString()}`}
+                          {eng?.views ? (
+                            <div className="mt-0.5 font-['IBM_Plex_Mono',monospace] text-[8px] text-[#8a6d40]">
+                              {eng.views} view{eng.views !== 1 ? "s" : ""}{eng.lastActivity && ` · ${new Date(eng.lastActivity).toLocaleDateString()}`}
                             </div>
-                          )}
+                          ) : null}
                         </div>
 
-                        {/* Expanded detail */}
+                        {/* Expanded */}
                         {isExpanded && (
-                          <div className="border-t border-black/8 px-3 py-3">
-                            {/* Editable fields */}
-                            <div className="space-y-2">
-                              {editableFields.map((field) => {
-                                const isEditing = editField?.idx === card._idx && editField?.field === field;
-                                const val = card[field] || "";
-
+                          <div className="border-t border-black/8 px-2.5 py-2.5">
+                            <div className="space-y-1.5">
+                              {editableFields.map(({ key: fk, label }) => {
+                                const isEditing = editField?.key === key && editField?.field === fk;
+                                const val = String(card[fk] || "");
                                 return (
-                                  <div key={field}>
-                                    <label className="mb-0.5 block font-['IBM_Plex_Mono',monospace] text-[9px] uppercase tracking-wider text-[#8a6d40]">
-                                      {field}
-                                    </label>
+                                  <div key={fk}>
+                                    <label className="mb-px block font-['IBM_Plex_Mono',monospace] text-[8px] uppercase tracking-wider text-[#8a6d40]">{label}</label>
                                     {isEditing ? (
-                                      field === "Stage" ? (
-                                        <select
-                                          value={editValue}
-                                          onChange={(e) => setEditValue(e.target.value)}
-                                          onBlur={() => handleSaveField(card._idx, field, editValue)}
-                                          autoFocus
-                                          className="w-full border border-[#8a6d40] bg-white px-2 py-1 text-[12px] outline-none"
-                                        >
-                                          {[...STAGE_ORDER, "0 - Passed"].map((s) => (
-                                            <option key={s} value={s}>{s}</option>
-                                          ))}
+                                      fk === "stage" ? (
+                                        <select value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={() => handleSaveField(card, fk, editValue)} autoFocus className="w-full border border-[#8a6d40] px-1.5 py-1 text-[11px] outline-none">
+                                          {[...STAGE_ORDER, "0 - Passed"].map((s) => <option key={s} value={s}>{s}</option>)}
                                         </select>
-                                      ) : field === "Type" ? (
-                                        <select
-                                          value={editValue}
-                                          onChange={(e) => setEditValue(e.target.value)}
-                                          onBlur={() => handleSaveField(card._idx, field, editValue)}
-                                          autoFocus
-                                          className="w-full border border-[#8a6d40] bg-white px-2 py-1 text-[12px] outline-none"
-                                        >
-                                          <option value="Angel">Angel</option>
-                                          <option value="VC">VC</option>
-                                          <option value="Advisor">Advisor</option>
+                                      ) : fk === "type" ? (
+                                        <select value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={() => handleSaveField(card, fk, editValue)} autoFocus className="w-full border border-[#8a6d40] px-1.5 py-1 text-[11px] outline-none">
+                                          <option value="Angel">Angel</option><option value="VC">VC</option><option value="Advisor">Advisor</option>
                                         </select>
                                       ) : (
-                                        <input
-                                          type="text"
-                                          value={editValue}
-                                          onChange={(e) => setEditValue(e.target.value)}
-                                          onBlur={() => handleSaveField(card._idx, field, editValue)}
-                                          onKeyDown={(e) => { if (e.key === "Enter") handleSaveField(card._idx, field, editValue); if (e.key === "Escape") setEditField(null); }}
-                                          autoFocus
-                                          className="w-full border border-[#8a6d40] bg-white px-2 py-1 text-[12px] outline-none"
-                                        />
+                                        <input type="text" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={() => handleSaveField(card, fk, editValue)} onKeyDown={(e) => { if (e.key === "Enter") handleSaveField(card, fk, editValue); if (e.key === "Escape") setEditField(null); }} autoFocus className="w-full border border-[#8a6d40] px-1.5 py-1 text-[11px] outline-none" />
                                       )
                                     ) : (
-                                      <div
-                                        className="min-h-[24px] cursor-pointer rounded-sm px-2 py-1 text-[12px] text-[#2c2f34] hover:bg-black/[0.03]"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setEditField({ idx: card._idx, field });
-                                          setEditValue(val);
-                                        }}
-                                      >
-                                        {field === "Profile / Notes" ? (
-                                          <span className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-[#5d6168]">{val || "Click to add..."}</span>
-                                        ) : (
-                                          val || <span className="text-[#b9b2a4]">Click to edit</span>
-                                        )}
+                                      <div className="min-h-[22px] cursor-pointer px-1.5 py-1 text-[11px] text-[#2c2f34] hover:bg-black/[0.02]" onClick={(e) => { e.stopPropagation(); setEditField({ key, field: fk }); setEditValue(val); }}>
+                                        {fk === "notes" ? <span className="whitespace-pre-wrap break-words text-[10px] leading-relaxed text-[#5d6168]">{val || "Click to add..."}</span> : val || <span className="text-[#b9b2a4]">—</span>}
                                       </div>
                                     )}
                                   </div>
@@ -360,55 +301,29 @@ export function PipelineBoard({ headers, initialRows, engagement }: PipelineBoar
                               })}
                             </div>
 
-                            {/* Engagement detail */}
                             {eng?.hasLink && (
-                              <div className="mt-3 border-t border-black/6 pt-2">
-                                <div className="font-['IBM_Plex_Mono',monospace] text-[9px] uppercase tracking-wider text-[#8a6d40]">Engagement</div>
-                                <div className="mt-1 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#5d6168]">
-                                  {eng.views} views &middot; {eng.downloads} downloads
-                                  {eng.lastActivity && ` · Last: ${new Date(eng.lastActivity).toLocaleDateString()}`}
-                                </div>
+                              <div className="mt-2 border-t border-black/6 pt-1.5 font-['IBM_Plex_Mono',monospace] text-[9px] text-[#5d6168]">
+                                {eng.views} views · {eng.downloads} downloads{eng.lastActivity && ` · Last: ${new Date(eng.lastActivity).toLocaleDateString()}`}
                               </div>
                             )}
 
-                            {/* Actions */}
-                            <div className="mt-3 flex gap-2">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleShareRoom(card._idx); }}
-                                disabled={sharingIdx === card._idx}
-                                className="cursor-pointer bg-[#17191c] px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[10px] tracking-wide text-[#f3efe7] hover:bg-[#2c2f34] disabled:opacity-50"
-                              >
-                                {sharingIdx === card._idx ? "Creating..." : eng?.hasLink ? "New room link" : "Share data room"}
+                            <div className="mt-2.5 flex gap-1.5">
+                              <button onClick={(e) => { e.stopPropagation(); setShareTarget(card); }} className="cursor-pointer bg-[#17191c] px-2.5 py-1 font-['IBM_Plex_Mono',monospace] text-[9px] tracking-wide text-[#f3efe7] hover:bg-[#2c2f34]">
+                                {eng?.hasLink ? "New link" : "Share data room"}
                               </button>
-                              {eng?.hasLink && eng.linkToken && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigator.clipboard.writeText(`${window.location.origin}/room/${eng.linkToken}`);
-                                    setShareResult(`Copied link for ${card["Name"]}`);
-                                    setTimeout(() => setShareResult(null), 3000);
-                                  }}
-                                  className="cursor-pointer border border-black/15 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#3a3d42] hover:border-black/25"
-                                >
-                                  Copy existing link
+                              {eng?.linkToken && (
+                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/room/${eng.linkToken}`); setToast("Copied!"); setTimeout(() => setToast(null), 2000); }} className="cursor-pointer border border-black/15 bg-white px-2.5 py-1 font-['IBM_Plex_Mono',monospace] text-[9px] text-[#3a3d42] hover:border-black/25">
+                                  Copy link
                                 </button>
                               )}
                             </div>
-
-                            {saving && (
-                              <div className="mt-2 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#8a6d40]">Saving...</div>
-                            )}
+                            {saving && <div className="mt-1 font-['IBM_Plex_Mono',monospace] text-[9px] text-[#8a6d40]">Saving...</div>}
                           </div>
                         )}
                       </div>
                     );
                   })}
-
-                  {cards.length === 0 && (
-                    <div className="py-6 text-center font-['IBM_Plex_Mono',monospace] text-[10px] text-[#b9b2a4]">
-                      Drop here
-                    </div>
-                  )}
+                  {cards.length === 0 && <div className="py-4 text-center font-['IBM_Plex_Mono',monospace] text-[9px] text-[#b9b2a4]">Drop here</div>}
                 </div>
               </div>
             );
@@ -416,21 +331,14 @@ export function PipelineBoard({ headers, initialRows, engagement }: PipelineBoar
         </div>
       </div>
 
-      {/* Passed section */}
+      {/* Passed */}
       {passed.length > 0 && (
-        <div className="mt-4 border-t border-black/8 pt-4">
-          <div className="mb-2 font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#c44]">
-            Passed ({passed.length})
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {passed.map((card) => (
-              <div
-                key={card._idx}
-                draggable
-                onDragStart={() => handleDragStart(card._idx)}
-                className="cursor-grab border border-black/8 bg-white/60 px-3 py-1.5 text-[12px] text-[#5d6168] opacity-60"
-              >
-                {card["Name"]}
+        <div className="mt-3 border-t border-black/8 pt-3">
+          <div className="mb-1.5 font-['IBM_Plex_Mono',monospace] text-[9px] uppercase tracking-wider text-[#c44]">Passed ({passed.length})</div>
+          <div className="flex flex-wrap gap-1.5">
+            {passed.map((c) => (
+              <div key={rowKey(c)} draggable onDragStart={() => handleDragStart(rowKey(c))} className="cursor-grab border border-black/8 bg-white/60 px-2.5 py-1 text-[11px] text-[#5d6168] opacity-60">
+                {c.name}
               </div>
             ))}
           </div>

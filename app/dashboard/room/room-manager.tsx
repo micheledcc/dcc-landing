@@ -34,6 +34,8 @@ export function RoomManager({
   const [expandedLink, setExpandedLink] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [editingFiles, setEditingFiles] = useState<string | null>(null);
+  const [editFileIds, setEditFileIds] = useState<string[]>([]);
 
   async function handleCreate() {
     setSaving(true);
@@ -85,6 +87,18 @@ export function RoomManager({
     });
     setLinks(links.map((l) => (l.id === id ? { ...l, label: editValue.trim() } : l)));
     setEditingLabel(null);
+  }
+
+  async function handleSaveFiles(id: string) {
+    const allFileIds = driveFiles.filter((f) => !f.isFolder).map((f) => f.id);
+    const fileIds = editFileIds.length === allFileIds.length ? null : editFileIds;
+    await fetch(`/api/room/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed_file_ids: fileIds }),
+    });
+    setLinks(links.map((l) => (l.id === id ? { ...l, allowed_file_ids: fileIds ? JSON.stringify(fileIds) : null } : l)));
+    setEditingFiles(null);
   }
 
   function copyLink(token: string) {
@@ -279,6 +293,19 @@ export function RoomManager({
                         </button>
                       </>
                     )}
+                    {!revoked && !expired && (
+                      <button
+                        onClick={() => {
+                          if (editingFiles === link.id) { setEditingFiles(null); return; }
+                          const currentFiles = typeof link.allowed_file_ids === "string" ? JSON.parse(link.allowed_file_ids) : link.allowed_file_ids;
+                          setEditFileIds(currentFiles || driveFiles.filter((f) => !f.isFolder).map((f) => f.id));
+                          setEditingFiles(link.id);
+                        }}
+                        className="cursor-pointer border border-black/15 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#3a3d42] hover:border-black/25"
+                      >
+                        {editingFiles === link.id ? "Cancel edit" : "Edit files"}
+                      </button>
+                    )}
                     <button onClick={() => handleDelete(link.id)} className="cursor-pointer border border-red-200 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-red-700 hover:bg-red-50 hover:border-red-400">
                       Delete
                     </button>
@@ -291,6 +318,34 @@ export function RoomManager({
                   </div>
                 </div>
               </div>
+
+              {/* Edit files panel */}
+              {editingFiles === link.id && (
+                <div className="border-t border-[#8a6d40]/30 bg-[#8a6d40]/5 px-5 py-4">
+                  <h4 className="mb-2 font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#8a6d40]">Edit included files</h4>
+                  <div className="mb-3 space-y-1">
+                    {driveFiles.map((file) => {
+                      if (file.isFolder) {
+                        return (
+                          <div key={file.id} className="flex items-center gap-2 py-0.5" style={{ paddingLeft: `${(file.depth || 0) * 16 + 4}px` }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8a6d40" strokeWidth="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                            <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-medium uppercase tracking-wider text-[#3a3d42]">{file.name}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <label key={file.id} className={`flex cursor-pointer items-center gap-2 border px-2 py-1.5 ${editFileIds.includes(file.id) ? "border-[#8a6d40]/40 bg-white" : "border-black/6 opacity-50"}`} style={{ marginLeft: `${(file.depth || 0) * 16}px` }}>
+                          <input type="checkbox" checked={editFileIds.includes(file.id)} onChange={() => setEditFileIds((prev) => prev.includes(file.id) ? prev.filter((f) => f !== file.id) : [...prev, file.id])} className="accent-[#8a6d40]" />
+                          <span className="text-[12px]">{file.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <button onClick={() => handleSaveFiles(link.id)} className="cursor-pointer bg-[#17191c] px-4 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] tracking-wide text-[#f3efe7] hover:bg-[#2c2f34]">
+                    Save changes
+                  </button>
+                </div>
+              )}
 
               {/* Expanded analytics */}
               {isExpanded && detail && (
