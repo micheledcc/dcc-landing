@@ -69,7 +69,14 @@ export function DashboardView({
       byType[type].amount += amt;
     });
 
-    return { totalAmount, totalWeighted, byStage, byType };
+    // Separate committed vs pipeline target
+    const committed = filtered.filter((r) => r.source === "commitments");
+    const prospects = filtered.filter((r) => r.source !== "commitments");
+    const totalCommitted = committed.reduce((s, r) => s + parseCurrency(r.amount), 0);
+    const totalPipelineTarget = prospects.reduce((s, r) => s + parseCurrency(r.amount), 0);
+    const committedWeighted = committed.reduce((s, r) => s + parseCurrency(r.weighted), 0);
+
+    return { totalAmount, totalWeighted, totalCommitted, totalPipelineTarget, committedWeighted, byStage, byType };
   }, [filtered]);
 
   // Convert PipelineRows to table format
@@ -98,7 +105,7 @@ export function DashboardView({
         <div>
           <h1 className="font-['Spectral',Georgia,serif] text-3xl font-light">Pipeline</h1>
           <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#8a6d40] uppercase tracking-wider">
-            {allRows.length} investors &middot; {formatCurrency(stats.totalAmount)} total &middot; {formatCurrency(stats.totalWeighted)} weighted
+            {allRows.length} investors &middot; {formatCurrency(stats.totalCommitted)} committed &middot; {formatCurrency(stats.totalPipelineTarget)} pipeline target
           </p>
         </div>
         <div className="flex gap-2">
@@ -143,8 +150,14 @@ export function DashboardView({
 
       {/* Summary Cards */}
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        <SummaryCard label={tab === "pipeline" ? "Target" : "Committed"} value={formatCurrency(stats.totalAmount)} sub={`${filtered.length} investors`} />
-        <SummaryCard label="Weighted" value={formatCurrency(stats.totalWeighted)} sub="probability-adjusted" />
+        {tab === "pipeline" ? (
+          <SummaryCard label="Pipeline Target" value={formatCurrency(stats.totalAmount)} sub={`${filtered.length} prospects`} />
+        ) : tab === "commitments" ? (
+          <SummaryCard label="Committed" value={formatCurrency(stats.totalCommitted)} sub={`${filtered.length} investors`} />
+        ) : (
+          <SummaryCard label="Committed" value={formatCurrency(stats.totalCommitted)} sub={`+ ${formatCurrency(stats.totalPipelineTarget)} in pipeline`} />
+        )}
+        <SummaryCard label="Weighted" value={formatCurrency(tab === "commitments" ? stats.committedWeighted : stats.totalWeighted)} sub="probability-adjusted" />
         <SummaryCard
           label="Verbal+"
           value={String(
