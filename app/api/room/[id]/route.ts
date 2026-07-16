@@ -26,6 +26,13 @@ export async function PATCH(
   if (body.allow_download !== undefined) {
     await sql`UPDATE room_links SET allow_download = ${body.allow_download} WHERE id = ${id}`;
   }
+
+  if (body.allowed_emails !== undefined) {
+    const emails = body.allowed_emails === null ? null : JSON.stringify(
+      body.allowed_emails.map((e: string) => e.toLowerCase().trim()).filter((e: string) => e.includes("@"))
+    );
+    await sql`UPDATE room_links SET allowed_emails = ${emails} WHERE id = ${id}`;
+  }
   return NextResponse.json({ ok: true });
 }
 

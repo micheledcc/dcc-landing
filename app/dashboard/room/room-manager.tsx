@@ -36,6 +36,8 @@ export function RoomManager({
   const [editValue, setEditValue] = useState("");
   const [editingFiles, setEditingFiles] = useState<string | null>(null);
   const [editFileIds, setEditFileIds] = useState<string[]>([]);
+  const [editingEmails, setEditingEmails] = useState<string | null>(null);
+  const [editEmailText, setEditEmailText] = useState("");
 
   async function handleCreate() {
     setSaving(true);
@@ -99,6 +101,22 @@ export function RoomManager({
     });
     setLinks(links.map((l) => (l.id === id ? { ...l, allowed_file_ids: fileIds ? JSON.stringify(fileIds) : null } : l)));
     setEditingFiles(null);
+  }
+
+  async function handleSaveEmails(id: string) {
+    const emails = editEmailText
+      .split(/[\n,]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e.includes("@"));
+    const value = emails.length > 0 ? emails : null;
+
+    await fetch(`/api/room/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed_emails: value }),
+    });
+    setLinks(links.map((l) => (l.id === id ? { ...l, allowed_emails: value ? JSON.stringify(value) : null } : l)));
+    setEditingEmails(null);
   }
 
   function copyLink(token: string) {
@@ -294,17 +312,32 @@ export function RoomManager({
                       </>
                     )}
                     {!revoked && !expired && (
-                      <button
-                        onClick={() => {
-                          if (editingFiles === link.id) { setEditingFiles(null); return; }
-                          const currentFiles = typeof link.allowed_file_ids === "string" ? JSON.parse(link.allowed_file_ids) : link.allowed_file_ids;
-                          setEditFileIds(currentFiles || driveFiles.filter((f) => !f.isFolder).map((f) => f.id));
-                          setEditingFiles(link.id);
-                        }}
-                        className="cursor-pointer border border-black/15 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#3a3d42] hover:border-black/25"
-                      >
-                        {editingFiles === link.id ? "Cancel edit" : "Edit files"}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => {
+                            if (editingFiles === link.id) { setEditingFiles(null); return; }
+                            setEditingEmails(null);
+                            const currentFiles = typeof link.allowed_file_ids === "string" ? JSON.parse(link.allowed_file_ids) : link.allowed_file_ids;
+                            setEditFileIds(currentFiles || driveFiles.filter((f) => !f.isFolder).map((f) => f.id));
+                            setEditingFiles(link.id);
+                          }}
+                          className="cursor-pointer border border-black/15 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#3a3d42] hover:border-black/25"
+                        >
+                          {editingFiles === link.id ? "Cancel" : "Edit files"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (editingEmails === link.id) { setEditingEmails(null); return; }
+                            setEditingFiles(null);
+                            const currentEmails: string[] | null = typeof link.allowed_emails === "string" ? JSON.parse(link.allowed_emails) : link.allowed_emails;
+                            setEditEmailText(currentEmails ? currentEmails.join("\n") : "");
+                            setEditingEmails(link.id);
+                          }}
+                          className="cursor-pointer border border-black/15 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#3a3d42] hover:border-black/25"
+                        >
+                          {editingEmails === link.id ? "Cancel" : "Edit emails"}
+                        </button>
+                      </>
                     )}
                     <button onClick={() => handleDelete(link.id)} className="cursor-pointer border border-red-200 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-red-700 hover:bg-red-50 hover:border-red-400">
                       Delete
@@ -344,6 +377,29 @@ export function RoomManager({
                   <button onClick={() => handleSaveFiles(link.id)} className="cursor-pointer bg-[#17191c] px-4 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] tracking-wide text-[#f3efe7] hover:bg-[#2c2f34]">
                     Save changes
                   </button>
+                </div>
+              )}
+
+              {/* Edit emails panel */}
+              {editingEmails === link.id && (
+                <div className="border-t border-[#8a6d40]/30 bg-[#8a6d40]/5 px-5 py-4">
+                  <h4 className="mb-1.5 font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#8a6d40]">Allowed emails</h4>
+                  <p className="mb-2 text-[11px] text-[#5d6168]">One email per line. Leave empty to make the link public (no email gate).</p>
+                  <textarea
+                    value={editEmailText}
+                    onChange={(e) => setEditEmailText(e.target.value)}
+                    placeholder={"investor@fund.com\npartner@vc.com"}
+                    rows={4}
+                    className="mb-3 w-full max-w-sm border border-black/15 px-3 py-2 font-['IBM_Plex_Mono',monospace] text-[12px] outline-none focus:border-[#8a6d40]"
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleSaveEmails(link.id)} className="cursor-pointer bg-[#17191c] px-4 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] tracking-wide text-[#f3efe7] hover:bg-[#2c2f34]">
+                      Save emails
+                    </button>
+                    <button onClick={() => setEditingEmails(null)} className="cursor-pointer border border-black/15 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#5d6168] hover:border-black/25">
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
 
