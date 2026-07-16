@@ -41,12 +41,15 @@ export function DashboardView({
   commitmentHeaders: string[];
 }) {
   const [tab, setTab] = useState<"all" | "pipeline" | "commitments">("all");
+  const [hidePassed, setHidePassed] = useState(true);
 
   const filtered = useMemo(() => {
-    if (tab === "all") return allRows;
-    if (tab === "pipeline") return allRows.filter((r) => r.source !== "commitments");
-    return allRows.filter((r) => r.source === "commitments");
-  }, [allRows, tab]);
+    let rows = allRows;
+    if (tab === "pipeline") rows = rows.filter((r) => r.source !== "commitments");
+    else if (tab === "commitments") rows = rows.filter((r) => r.source === "commitments");
+    if (hidePassed) rows = rows.filter((r) => r.stage !== "0 - Passed");
+    return rows;
+  }, [allRows, tab, hidePassed]);
 
   const stats = useMemo(() => {
     const totalAmount = filtered.reduce((s, r) => s + parseCurrency(r.amount), 0);
@@ -128,7 +131,7 @@ export function DashboardView({
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-1 border-b border-black/10">
+      <div className="mb-6 flex items-center justify-between border-b border-black/10">
         {[
           { key: "all" as const, label: `All (${allRows.length})` },
           { key: "pipeline" as const, label: `Pipeline (${pipelineCount})` },
@@ -146,6 +149,10 @@ export function DashboardView({
             {t.label}
           </button>
         ))}
+        <label className="flex cursor-pointer items-center gap-2 px-2 py-2">
+          <input type="checkbox" checked={hidePassed} onChange={(e) => setHidePassed(e.target.checked)} className="accent-[#8a6d40]" />
+          <span className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#5d6168] whitespace-nowrap">Hide passed</span>
+        </label>
       </div>
 
       {/* Summary Cards */}
