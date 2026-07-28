@@ -27,6 +27,13 @@ export async function PATCH(
     await sql`UPDATE room_links SET allow_download = ${body.allow_download} WHERE id = ${id}`;
   }
 
+  if (body.extend_days !== undefined) {
+    const days = parseInt(body.extend_days);
+    if (days > 0) {
+      await sql`UPDATE room_links SET expires_at = GREATEST(expires_at, now()) + make_interval(days => ${days}) WHERE id = ${id}`;
+    }
+  }
+
   if (body.allowed_emails !== undefined) {
     const emails = body.allowed_emails === null ? null : JSON.stringify(
       body.allowed_emails.map((e: string) => e.toLowerCase().trim()).filter((e: string) => e.includes("@"))

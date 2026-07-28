@@ -74,6 +74,20 @@ export function RoomManager({
     setLinks(links.map((l) => (l.id === id ? { ...l, is_active: false } : l)));
   }
 
+  async function handleExtend(id: string, days: number) {
+    await fetch(`/api/room/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ extend_days: days }),
+    });
+    setLinks(links.map((l) => {
+      if (l.id !== id) return l;
+      const base = new Date(l.expires_at) > new Date() ? new Date(l.expires_at) : new Date();
+      base.setDate(base.getDate() + days);
+      return { ...l, expires_at: base.toISOString() };
+    }));
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("Permanently delete this link and all its analytics? This cannot be undone.")) return;
     await fetch(`/api/room/${id}?permanent=1`, { method: "DELETE" });
@@ -310,6 +324,19 @@ export function RoomManager({
                           Revoke
                         </button>
                       </>
+                    )}
+                    {!revoked && (
+                      <select
+                        defaultValue=""
+                        onChange={(e) => { if (e.target.value) { handleExtend(link.id, parseInt(e.target.value)); e.target.value = ""; } }}
+                        className="cursor-pointer border border-black/15 bg-white px-2 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#3a3d42] outline-none hover:border-black/25"
+                      >
+                        <option value="" disabled>{expired ? "Reactivate" : "Extend"}</option>
+                        <option value="7">+7 days</option>
+                        <option value="14">+14 days</option>
+                        <option value="30">+30 days</option>
+                        <option value="90">+90 days</option>
+                      </select>
                     )}
                     {!revoked && !expired && (
                       <>
