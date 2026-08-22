@@ -1,0 +1,16 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { fonts } from "../tokens";
+/**
+ * Hairline-divided list rows with a bronze mono marker column — the
+ * roman-numeral constraint list ("i / ii / iii") on the landing page.
+ */
+export function NumberedList({ items }) {
+    return (_jsx("div", { style: { display: "flex", flexDirection: "column", borderTop: "1px solid rgba(23,25,28,0.12)" }, children: items.map((item) => (_jsxs("div", { style: { display: "flex", gap: "22px", padding: "20px 0", borderBottom: "1px solid rgba(23,25,28,0.12)" }, children: [_jsx("span", { style: {
+                        fontFamily: fonts.mono,
+                        fontSize: "12px",
+                        color: "#8a6d40",
+                        paddingTop: "2px",
+                        flex: "none",
+                        width: "26px",
+                    }, children: item.marker }), _jsx("p", { style: { fontFamily: fonts.sans, fontSize: "15px", lineHeight: 1.55, color: "#2c2f34", margin: 0 }, children: item.text })] }, item.marker))) }));
+}

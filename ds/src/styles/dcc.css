@@ -1,0 +1,74 @@
+@import url("https://fonts.googleapis.com/css2?family=Spectral:wght@300;400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+:root {
+  --dcc-bg: #f3efe7;
+  --dcc-bg-alt: #ece7dc;
+  --dcc-ink: #17191c;
+  --dcc-ink-soft: #2c2f34;
+  --dcc-text-body: #41454b;
+  --dcc-text-secondary: #494d53;
+  --dcc-text-muted: #5d6168;
+  --dcc-text-label: #3a3d42;
+  --dcc-accent: #8a6d40;
+  --dcc-accent-dark: #b79256;
+  --dcc-on-dark-heading: #ece8e0;
+  --dcc-on-dark-body: #a9aaa6;
+  --dcc-on-dark-muted: #8c8d89;
+  --dcc-on-dark-footer: #75766f;
+  --dcc-hairline: rgba(23, 25, 28, 0.1);
+  --dcc-hairline-divider: rgba(23, 25, 28, 0.12);
+  --dcc-hairline-grid: rgba(23, 25, 28, 0.18);
+  --dcc-hairline-chip: rgba(23, 25, 28, 0.2);
+  --dcc-hairline-on-dark: rgba(255, 255, 255, 0.1);
+  --dcc-font-serif: "Spectral", Georgia, serif;
+  --dcc-font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --dcc-font-mono: "IBM Plex Mono", monospace;
+}
+
+::selection {
+  background: #17191c;
+  color: #f3efe7;
+}
+
+@keyframes dccRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dccLineGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Hover states — inline styles can't express these */
+.dcc-nav-link:hover {
+  color: #17191c !important;
+}
+.dcc-btn-primary:hover {
+  background: #2c2f34 !important;
+}
+.dcc-btn-secondary:hover {
+  border-bottom-color: #17191c !important;
+}
+.dcc-btn-cta:hover {
+  background: #fff !important;
+}
+.dcc-table-row:hover {
+  background: #f9f7f2;
+}
+.dcc-sort-btn:hover {
+  color: #17191c !important;
+}
+.dcc-resize-handle:hover {
+  background: rgba(138, 109, 64, 0.2) !important;
+}

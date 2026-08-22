@@ -17,6 +17,7 @@ export function EmailGate({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   async function handleEmailSubmit(e: React.FormEvent) {
@@ -43,8 +44,13 @@ export function EmailGate({
 
   async function handleCodeSubmit() {
     const fullCode = code.join("");
-    if (fullCode.length !== 6) return;
+    if (fullCode.length !== 6 || verifying) return;
+    await submitCode(fullCode);
+  }
 
+  async function submitCode(fullCode: string) {
+    if (verifying) return;
+    setVerifying(true);
     setError("");
     setLoading(true);
 
@@ -61,6 +67,7 @@ export function EmailGate({
       setError(data.error || "Invalid code");
       setCode(["", "", "", "", "", ""]);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
+      setVerifying(false);
     }
     setLoading(false);
   }
@@ -100,32 +107,8 @@ export function EmailGate({
     // Auto-submit when complete
     const full = newCode.join("");
     if (full.length === 6) {
-      setTimeout(() => handleCodeSubmitFromCode(newCode), 100);
+      setTimeout(() => submitCode(full), 100);
     }
-  }
-
-  async function handleCodeSubmitFromCode(codeArr: string[]) {
-    const fullCode = codeArr.join("");
-    if (fullCode.length !== 6) return;
-
-    setError("");
-    setLoading(true);
-
-    const res = await fetch(`${apiPrefix}/${token}/verify-code`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code: fullCode }),
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      window.location.reload();
-    } else {
-      setError(data.error || "Invalid code");
-      setCode(["", "", "", "", "", ""]);
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
-    }
-    setLoading(false);
   }
 
   function handleKeyDown(index: number, e: React.KeyboardEvent) {
@@ -146,7 +129,7 @@ export function EmailGate({
         const digits = pasted.split("");
         setCode(digits);
         inputRefs.current[5]?.focus();
-        setTimeout(() => handleCodeSubmitFromCode(digits), 200);
+        setTimeout(() => submitCode(digits.join("")), 200);
       }
     }
     document.addEventListener("paste", handlePaste);

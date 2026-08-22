@@ -66,16 +66,19 @@ export async function listDriveFolderTree(
 
     if (isFolder) {
       const children = await listDriveFolderTree(f.id!, allowedFileIds, path);
-      items.push({
-        id: f.id!,
-        name: f.name!,
-        mimeType: f.mimeType!,
-        size: 0,
-        modifiedTime: f.modifiedTime!,
-        isFolder: true,
-        children,
-        path,
-      });
+      // Only include folder if it has visible children
+      if (!allowedFileIds || children.length > 0) {
+        items.push({
+          id: f.id!,
+          name: f.name!,
+          mimeType: f.mimeType!,
+          size: 0,
+          modifiedTime: f.modifiedTime!,
+          isFolder: true,
+          children,
+          path,
+        });
+      }
     } else {
       if (allowedFileIds && !allowedFileIds.includes(f.id!)) continue;
       items.push({

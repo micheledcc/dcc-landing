@@ -1,0 +1,19 @@
+{
+  "projectId": "f8ffbdbb-b350-4147-a329-3bb6c6e0fd49",
+  "shape": "package",
+  "pkg": "@dcc/design-system",
+  "globalName": "DCC",
+  "buildCmd": "npx tsc -p ds/tsconfig.json",
+  "srcDir": "ds/src",
+  "cssEntry": "src/styles/dcc.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "DataTable": { "cardMode": "column" },
+    "SiteHeader": { "cardMode": "column" },
+    "SiteFooter": { "cardMode": "column" },
+    "ProcessTimeline": { "cardMode": "column" },
+    "FeatureCardGrid": { "cardMode": "column" },
+    "DarkStatement": { "cardMode": "column" },
+    "ContactSplit": { "cardMode": "column" }
+  }
+}
