@@ -2,7 +2,8 @@ import "@/app/globals.css";
 import { getRoomLink } from "@/lib/room";
 import { listDriveFolder } from "@/lib/drive";
 import { cookies } from "next/headers";
-import { jwtVerify } from "jose";
+import { isRoomActive, roomCookieName, roomViewer, stringList } from "@/lib/room-access";
+import { EmailGate } from "@/app/view/[token]/email-gate";
 import { PdfViewer } from "./pdf-viewer";
 import { ImageViewer } from "./image-viewer";
 import Link from "next/link";
@@ -11,51 +12,31 @@ export const dynamic = "force-dynamic";
 
 export default async function FileViewPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ token: string; fileId: string }>;
-  searchParams: Promise<{ email?: string }>;
 }) {
   const { token, fileId } = await params;
-  const { email: queryEmail } = await searchParams;
   const link = await getRoomLink(token);
 
-  if (!link || !link.is_active || new Date(link.expires_at) < new Date()) {
+  if (!isRoomActive(link)) {
     return <Shell token={token}><p>Room not found or expired.</p></Shell>;
   }
 
-  // Email gate check
-  const allowedEmails: string[] | null =
-    typeof link.allowed_emails === "string" ? JSON.parse(link.allowed_emails) : link.allowed_emails;
-  let viewerEmail = queryEmail || undefined;
-
-  if (allowedEmails && allowedEmails.length > 0) {
-    const jar = await cookies();
-    const viewerCookie = jar.get(`dcc_room_${token.substring(0, 16)}`)?.value;
-    if (viewerCookie) {
-      try {
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret-change-me");
-        const { payload } = await jwtVerify(viewerCookie, secret);
-        if (payload.token === token) viewerEmail = payload.email as string;
-      } catch {}
-    }
+  const jar = await cookies();
+  const viewer = await roomViewer(link, token, jar.get(roomCookieName(token))?.value);
+  if (!viewer.allowed) {
+    return <Shell token={token}><EmailGate token={token} linkLabel={link.label} apiPrefix="/api/room" /></Shell>;
   }
-
-  // Get file metadata directly from Drive
-  const allowedFileIds =
-    typeof link.allowed_file_ids === "string" ? JSON.parse(link.allowed_file_ids) : link.allowed_file_ids;
-
-  let fileName = "Document";
-  let mimeType = "";
-
+  const viewerEmail = viewer.email;
+  let file;
   try {
-    const files = await listDriveFolder(link.drive_folder_id, allowedFileIds);
-    const file = files.find((f) => f.id === fileId);
-    if (file) {
-      fileName = file.name;
-      mimeType = file.mimeType;
-    }
-  } catch {}
+    const files = await listDriveFolder(link.drive_folder_id, stringList(link.allowed_file_ids));
+    file = files.find((f) => f.id === fileId);
+  } catch {
+    return <Shell token={token}><p>Unable to load this document. Please try again later.</p></Shell>;
+  }
+  if (!file) return <Shell token={token}><p>Document not available in this data room.</p></Shell>;
+  const { name: fileName, mimeType } = file;
 
   const fileUrl = `/api/room/${token}/file/${fileId}`;
   const downloadUrl = `${fileUrl}?download=1`;

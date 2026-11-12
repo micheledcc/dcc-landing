@@ -9,3 +9,5 @@
 *.bak
 ds-bundle/
 node_modules/
+public/pdf.worker.min.mjs
+*.tsbuildinfo

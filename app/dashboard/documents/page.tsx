@@ -1,10 +1,11 @@
+import { getDataRoomFolderId } from "@/lib/data-room-config";
 import { getAuth } from "@/lib/auth";
 import { listDriveFolderTree, getFileIcon, formatFileSize, type DriveFile } from "@/lib/drive";
 import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-const DRIVE_FOLDER_ID = "1GDls9NYWeAuk1y3UN4TyEhbgl7nFX-se";
+
 
 function countFiles(items: DriveFile[]): number {
   let count = 0;
@@ -21,7 +22,7 @@ export default async function DocumentsPage() {
 
   let tree: DriveFile[];
   try {
-    tree = await listDriveFolderTree(DRIVE_FOLDER_ID);
+    tree = await listDriveFolderTree(getDataRoomFolderId());
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return (
@@ -63,7 +64,7 @@ export default async function DocumentsPage() {
           </p>
         </div>
         <a
-          href="https://drive.google.com/drive/folders/1GDls9NYWeAuk1y3UN4TyEhbgl7nFX-se"
+          href={`https://drive.google.com/drive/folders/${getDataRoomFolderId()}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 border border-black/12 bg-white px-3 py-2 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#3a3d42] no-underline hover:border-black/25"

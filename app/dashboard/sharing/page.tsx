@@ -1,3 +1,4 @@
+import { getDataRoomFolderId } from "@/lib/data-room-config";
 import { getAuth } from "@/lib/auth";
 import { listShareLinks } from "@/lib/share";
 import { listRoomLinks, getAllRoomAnalytics, getRoomAnalytics } from "@/lib/room";
@@ -8,7 +9,7 @@ import { SharingPage } from "./sharing-page";
 
 export const dynamic = "force-dynamic";
 
-const DRIVE_FOLDER_ID = "1GDls9NYWeAuk1y3UN4TyEhbgl7nFX-se";
+
 
 export default async function Sharing() {
   const auth = await getAuth();
@@ -24,7 +25,7 @@ export default async function Sharing() {
   // Drive files for room manager
   let driveFiles: { id: string; name: string; icon: string; size: string; isFolder?: boolean; depth?: number }[] = [];
   try {
-    const tree = await listDriveFolderTree(DRIVE_FOLDER_ID);
+    const tree = await listDriveFolderTree(getDataRoomFolderId());
     function flatten(items: DriveFile[], depth: number) {
       for (const f of items) {
         driveFiles.push({ id: f.id, name: f.name, icon: f.isFolder ? "DIR" : getFileIcon(f.mimeType), size: f.isFolder ? "" : formatFileSize(f.size), isFolder: f.isFolder, depth });

@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "db:setup": "npx tsx scripts/setup-db.ts",
-    "db:seed": "npx tsx scripts/seed.ts"
+    "db:seed": "npx tsx scripts/seed.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "prebuild": "node scripts/prepare-pdf-worker.mjs",
+    "predev": "node scripts/prepare-pdf-worker.mjs",
+    "build:vercel": "tsx scripts/verify-production-readiness.ts --required && npm run build"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.2",
@@ -15,8 +19,8 @@
     "bcryptjs": "^3.0.3",
     "googleapis": "^173.0.0",
     "jose": "^6.2.3",
-    "next": "^16.2.10",
-    "pdfjs-dist": "^5.6.205",
+    "next": "^16.4.6",
+    "pdfjs-dist": "^6.2.108",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
@@ -25,6 +29,10 @@
     "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }

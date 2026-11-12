@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { getRoomLink } from "@/lib/room";
 import { SignJWT } from "jose";
-
-const secret = () => new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret-change-me");
+import { isRoomActive, roomCookieName, roomSigningSecret, stringList } from "@/lib/room-access";
 
 export async function POST(
   req: NextRequest,
@@ -16,8 +15,12 @@ export async function POST(
   const normalizedEmail = email.toLowerCase().trim();
   const link = await getRoomLink(token);
 
-  if (!link || !link.is_active || new Date(link.expires_at) < new Date()) {
+  if (!isRoomActive(link)) {
     return NextResponse.json({ error: "Link not found or expired" }, { status: 404 });
+  }
+
+  if (!stringList(link.allowed_emails)?.includes(normalizedEmail)) {
+    return NextResponse.json({ error: "This link is not available for this email address." }, { status: 403 });
   }
 
   const record = (await sql`
@@ -50,14 +53,14 @@ export async function POST(
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("24h")
-    .sign(secret());
+    .sign(roomSigningSecret());
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(`dcc_room_${token.substring(0, 16)}`, viewerToken, {
+  res.cookies.set(roomCookieName(token), viewerToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: `/room/${token}`,
+    path: "/",
     maxAge: 60 * 60 * 24,
   });
 

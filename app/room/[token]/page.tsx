@@ -2,7 +2,7 @@ import "@/app/globals.css";
 import { getRoomLink } from "@/lib/room";
 import { listDriveFolderTree, getFileIcon, formatFileSize, type DriveFile } from "@/lib/drive";
 import { cookies } from "next/headers";
-import { jwtVerify } from "jose";
+import { roomCookieName, roomViewer, stringList } from "@/lib/room-access";
 import { EmailGate } from "@/app/view/[token]/email-gate";
 import Link from "next/link";
 
@@ -20,43 +20,17 @@ export default async function RoomPage({
     return <Shell><ErrorState code="404" title="Room not found" msg="This data room does not exist or has been revoked." /></Shell>;
   }
 
-  if (new Date(link.expires_at) < new Date()) {
+  if (!(new Date(link.expires_at).getTime() > Date.now())) {
     return <Shell><ErrorState code="exp" title="Link expired" msg={`This link expired on ${new Date(link.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}.`} /></Shell>;
   }
 
-  // Email gate check
-  const allowedEmails: string[] | null =
-    typeof link.allowed_emails === "string" ? JSON.parse(link.allowed_emails) : link.allowed_emails;
-  let viewerEmail: string | undefined;
-
-  if (allowedEmails && allowedEmails.length > 0) {
-    const jar = await cookies();
-    const viewerCookie = jar.get(`dcc_room_${token.substring(0, 16)}`)?.value;
-    let verified = false;
-
-    if (viewerCookie) {
-      try {
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret-change-me");
-        const { payload } = await jwtVerify(viewerCookie, secret);
-        if (payload.token === token && allowedEmails.includes(payload.email as string)) {
-          verified = true;
-          viewerEmail = payload.email as string;
-        }
-      } catch {}
-    }
-
-    if (!verified) {
-      return (
-        <Shell>
-          <EmailGate token={token} linkLabel={link.label} apiPrefix="/api/room" />
-        </Shell>
-      );
-    }
+  const jar = await cookies();
+  const viewer = await roomViewer(link, token, jar.get(roomCookieName(token))?.value);
+  if (!viewer.allowed) {
+    return <Shell><EmailGate token={token} linkLabel={link.label} apiPrefix="/api/room" /></Shell>;
   }
-
-  // Load files
-  const allowedFileIds =
-    typeof link.allowed_file_ids === "string" ? JSON.parse(link.allowed_file_ids) : link.allowed_file_ids;
+  const viewerEmail = viewer.email;
+  const allowedFileIds = stringList(link.allowed_file_ids);
 
   let tree: DriveFile[];
   try {

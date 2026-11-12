@@ -1,3 +1,4 @@
+import { getDataRoomFolderId } from "@/lib/data-room-config";
 import { getAuth } from "@/lib/auth";
 import { listRoomLinks, getAllRoomAnalytics, getRoomAnalytics } from "@/lib/room";
 import { listDriveFolderTree, getFileIcon, formatFileSize, type DriveFile } from "@/lib/drive";
@@ -5,7 +6,7 @@ import { RoomManager } from "./room-manager";
 
 export const dynamic = "force-dynamic";
 
-const DRIVE_FOLDER_ID = "1GDls9NYWeAuk1y3UN4TyEhbgl7nFX-se";
+
 
 export default async function RoomDashboardPage() {
   const auth = await getAuth();
@@ -13,7 +14,7 @@ export default async function RoomDashboardPage() {
 
   let driveFiles: { id: string; name: string; icon: string; size: string; isFolder?: boolean; children?: any[]; depth?: number }[] = [];
   try {
-    const tree = await listDriveFolderTree(DRIVE_FOLDER_ID);
+    const tree = await listDriveFolderTree(getDataRoomFolderId());
     // Flatten with depth for the file picker UI
     function flatten(items: DriveFile[], depth: number) {
       for (const f of items) {

@@ -27,7 +27,7 @@ export function RoomManager({
   const [label, setLabel] = useState("");
   const [expiresInDays, setExpiresInDays] = useState(30);
   const [allowedEmails, setAllowedEmails] = useState("");
-  const [selectedFiles, setSelectedFiles] = useState<string[]>(driveFiles.map((f) => f.id));
+  const [selectedFiles, setSelectedFiles] = useState<string[]>(driveFiles.filter((f) => !f.isFolder).map((f) => f.id));
   const [allowDownload, setAllowDownload] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -38,6 +38,9 @@ export function RoomManager({
   const [editFileIds, setEditFileIds] = useState<string[]>([]);
   const [editingEmails, setEditingEmails] = useState<string | null>(null);
   const [editEmailText, setEditEmailText] = useState("");
+  const [editDriveFiles, setEditDriveFiles] = useState<DriveFile[]>([]);
+  const [loadingFilesId, setLoadingFilesId] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   async function handleCreate() {
     setSaving(true);
@@ -53,7 +56,7 @@ export function RoomManager({
         label,
         expiresInDays,
         allowedEmails: emails.length > 0 ? emails : undefined,
-        allowedFileIds: selectedFiles.length < driveFiles.length ? selectedFiles : undefined,
+        allowedFileIds: selectedFiles,
         allowDownload,
       }),
     });
@@ -63,9 +66,10 @@ export function RoomManager({
       setCreating(false);
       setLabel("");
       setAllowedEmails("");
-      setSelectedFiles(driveFiles.map((f) => f.id));
+      setSelectedFiles(driveFiles.filter((f) => !f.isFolder).map((f) => f.id));
       setAllowDownload(true);
     }
+    else setError("Unable to create this link. Check the selected documents and try again.");
     setSaving(false);
   }
 
@@ -106,15 +110,33 @@ export function RoomManager({
   }
 
   async function handleSaveFiles(id: string) {
-    const allFileIds = driveFiles.filter((f) => !f.isFolder).map((f) => f.id);
-    const fileIds = editFileIds.length === allFileIds.length ? null : editFileIds;
-    await fetch(`/api/room/${id}`, {
+    const fileIds = editFileIds;
+    const response = await fetch(`/api/room/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ allowed_file_ids: fileIds }),
     });
-    setLinks(links.map((l) => (l.id === id ? { ...l, allowed_file_ids: fileIds ? JSON.stringify(fileIds) : null } : l)));
+    if (!response.ok) { setError("Unable to save this link's document selection."); return; }
+    setLinks(links.map((l) => (l.id === id ? { ...l, allowed_file_ids: JSON.stringify(fileIds) } : l)));
     setEditingFiles(null);
+  }
+
+  async function handleEditFiles(link: any) {
+    if (editingFiles === link.id) { setEditingFiles(null); return; }
+    setEditingEmails(null);
+    setError("");
+    setLoadingFilesId(link.id);
+    try {
+      const response = await fetch(`/api/room/${link.id}/selection`);
+      if (!response.ok) throw new Error("Selection unavailable");
+      const { files }: { files: DriveFile[] } = await response.json();
+      const available = files.filter((f) => !f.isFolder).map((f) => f.id);
+      const selected: string[] | null = typeof link.allowed_file_ids === "string" ? JSON.parse(link.allowed_file_ids) : link.allowed_file_ids;
+      setEditDriveFiles(files);
+      setEditFileIds(selected ? selected.filter((id) => available.includes(id)) : available);
+      setEditingFiles(link.id);
+    } catch { setError("Unable to load this link's own documents. Its selection has not changed."); }
+    finally { setLoadingFilesId(null); }
   }
 
   async function handleSaveEmails(id: string) {
@@ -149,6 +171,7 @@ export function RoomManager({
 
   return (
     <div>
+      {error && <p role="alert" className="mb-4 text-sm text-red-700">{error}</p>}
       {!creating && (
         <button
           onClick={() => setCreating(true)}
@@ -341,16 +364,11 @@ export function RoomManager({
                     {!revoked && !expired && (
                       <>
                         <button
-                          onClick={() => {
-                            if (editingFiles === link.id) { setEditingFiles(null); return; }
-                            setEditingEmails(null);
-                            const currentFiles = typeof link.allowed_file_ids === "string" ? JSON.parse(link.allowed_file_ids) : link.allowed_file_ids;
-                            setEditFileIds(currentFiles || driveFiles.filter((f) => !f.isFolder).map((f) => f.id));
-                            setEditingFiles(link.id);
-                          }}
+                          onClick={() => handleEditFiles(link)}
+                          disabled={loadingFilesId === link.id}
                           className="cursor-pointer border border-black/15 bg-white px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#3a3d42] hover:border-black/25"
                         >
-                          {editingFiles === link.id ? "Cancel" : "Edit files"}
+                          {loadingFilesId === link.id ? "Loading..." : editingFiles === link.id ? "Cancel" : "Edit files"}
                         </button>
                         <button
                           onClick={() => {
@@ -384,7 +402,7 @@ export function RoomManager({
                 <div className="border-t border-[#8a6d40]/30 bg-[#8a6d40]/5 px-5 py-4">
                   <h4 className="mb-2 font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-wider text-[#8a6d40]">Edit included files</h4>
                   <div className="mb-3 space-y-1">
-                    {driveFiles.map((file) => {
+                    {editDriveFiles.map((file) => {
                       if (file.isFolder) {
                         return (
                           <div key={file.id} className="flex items-center gap-2 py-0.5" style={{ paddingLeft: `${(file.depth || 0) * 16 + 4}px` }}>

@@ -1,3 +1,4 @@
+import { getDataRoomFolderId } from "@/lib/data-room-config";
 import { getAuth } from "@/lib/auth";
 import { readAllPipeline } from "@/lib/sheets";
 import { listRoomLinks, getAllRoomAnalytics } from "@/lib/room";
@@ -6,7 +7,7 @@ import { PipelineBoard } from "./pipeline-board";
 
 export const dynamic = "force-dynamic";
 
-const DRIVE_FOLDER_ID = "1GDls9NYWeAuk1y3UN4TyEhbgl7nFX-se";
+
 
 export default async function BoardPage() {
   const auth = await getAuth();
@@ -73,7 +74,7 @@ export default async function BoardPage() {
   // Drive files for share dialog
   let driveFiles: { id: string; name: string; icon: string; size: string; isFolder?: boolean; depth?: number }[] = [];
   try {
-    const tree = await listDriveFolderTree(DRIVE_FOLDER_ID);
+    const tree = await listDriveFolderTree(getDataRoomFolderId());
     function flatten(items: DriveFile[], depth: number) {
       for (const f of items) {
         driveFiles.push({

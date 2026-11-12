@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import type { PDFDocumentLoadingTask } from "pdfjs-dist";
 
 export function PdfViewer({
   fileUrl,
@@ -20,6 +21,7 @@ export function PdfViewer({
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [scale, setScale] = useState(1.5);
   const pageStartRef = useRef(Date.now());
   const trackedRef = useRef(false);
@@ -38,12 +40,15 @@ export function PdfViewer({
   // Load PDF
   useEffect(() => {
     let cancelled = false;
+    let task: PDFDocumentLoadingTask | undefined;
 
     async function loadPdf() {
       const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs?v=${pdfjsLib.version}`;
 
-      const doc = await pdfjsLib.getDocument(fileUrl).promise;
+      if (cancelled) return;
+      task = pdfjsLib.getDocument({ url: fileUrl });
+      const doc = await task.promise;
       if (!cancelled) {
         setPdf(doc);
         setTotal(doc.numPages);
@@ -51,8 +56,10 @@ export function PdfViewer({
       }
     }
 
-    loadPdf();
-    return () => { cancelled = true; };
+    loadPdf().catch(() => {
+      if (!cancelled) { setError("Unable to load this document. Please reload and verify your email if asked."); setLoading(false); }
+    });
+    return () => { cancelled = true; void task?.destroy(); };
   }, [fileUrl]);
 
   // Track initial view
@@ -66,18 +73,23 @@ export function PdfViewer({
   // Render current page
   useEffect(() => {
     if (!pdf || !canvasRef.current) return;
+    let cancelled = false;
+    let renderTask: { cancel(): void; promise: Promise<unknown> } | undefined;
 
     async function render() {
       const p = await pdf.getPage(page);
+      if (cancelled || !canvasRef.current) return;
       const viewport = p.getViewport({ scale });
       const canvas = canvasRef.current!;
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       const ctx = canvas.getContext("2d")!;
-      await p.render({ canvasContext: ctx, viewport }).promise;
+      renderTask = p.render({ canvas, canvasContext: ctx, viewport });
+      await renderTask?.promise;
     }
 
-    render();
+    render().catch(() => { if (!cancelled) setError("Unable to render this document. Please reload to try again."); });
+    return () => { cancelled = true; renderTask?.cancel(); };
   }, [pdf, page, scale]);
 
   // Track page duration on page change
@@ -117,6 +129,8 @@ export function PdfViewer({
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   });
+
+  if (error) return <p role="alert" className="border border-black/10 bg-white p-6 text-sm text-[#5d6168]">{error}</p>;
 
   if (loading) {
     return (

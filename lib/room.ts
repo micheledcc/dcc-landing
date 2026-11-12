@@ -1,5 +1,14 @@
 import crypto from "crypto";
 import { sql } from "./db";
+import type { RoomAccess } from "./room-access";
+
+export interface RoomLink extends RoomAccess {
+  id: string;
+  token: string;
+  label: string;
+  drive_folder_id: string;
+  creator_name?: string;
+}
 
 export function generateToken(): string {
   return crypto.randomBytes(32).toString("base64url");
@@ -20,7 +29,7 @@ export async function createRoomLink(params: {
   const emails = params.allowedEmails?.length
     ? JSON.stringify(params.allowedEmails.map((e) => e.toLowerCase().trim()))
     : null;
-  const fileIds = params.allowedFileIds?.length
+  const fileIds = params.allowedFileIds != null
     ? JSON.stringify(params.allowedFileIds)
     : null;
   const allowDownload = params.allowDownload ?? true;
@@ -30,7 +39,7 @@ export async function createRoomLink(params: {
     VALUES (${token}, ${params.label}, ${params.createdById}, ${params.driveFolderId}, ${expiresAt.toISOString()}, ${emails}, ${fileIds}, ${allowDownload})
     RETURNING *
   `;
-  return result.rows[0];
+  return result.rows[0] as RoomLink;
 }
 
 export async function getRoomLink(token: string) {
@@ -40,7 +49,7 @@ export async function getRoomLink(token: string) {
     JOIN admins a ON rl.created_by_id = a.id
     WHERE rl.token = ${token}
   `;
-  return result.rows[0] || null;
+  return (result.rows[0] as RoomLink | undefined) || null;
 }
 
 export async function listRoomLinks() {
@@ -50,7 +59,7 @@ export async function listRoomLinks() {
     JOIN admins a ON rl.created_by_id = a.id
     ORDER BY rl.created_at DESC
   `;
-  return result.rows;
+  return result.rows as RoomLink[];
 }
 
 export async function revokeRoomLink(id: string) {

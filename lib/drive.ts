@@ -1,146 +1,62 @@
 import { google } from "googleapis";
 import { Readable } from "stream";
+import { readDriveTree, flattenDriveTree, resolveDriveReference, type DriveTransport } from "./drive-reader";
+export type { DriveFile } from "./drive-reader";
 
 function getAuth() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
-  if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error("Google OAuth credentials not set");
-  }
+  const { GOOGLE_CLIENT_ID: clientId, GOOGLE_CLIENT_SECRET: clientSecret, GOOGLE_REFRESH_TOKEN: refreshToken } = process.env;
+  if (!clientId || !clientSecret || !refreshToken) throw new Error("Google OAuth credentials not set");
   const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
   oauth2.setCredentials({ refresh_token: refreshToken });
   return oauth2;
 }
 
-export interface DriveFile {
-  id: string;
-  name: string;
-  mimeType: string;
-  size: number;
-  modifiedTime: string;
-  isFolder: boolean;
-  children?: DriveFile[];
-  path?: string;
-}
+const fields = "id,name,mimeType,size,modifiedTime,trashed,shortcutDetails(targetId,targetMimeType,targetResourceKey)";
+const resourceHeaders = (id: string, key?: string): Record<string, string> => key ? { "X-Goog-Drive-Resource-Keys": `${id}/${key}` } : {};
 
-// Flat list (for room links -- no folders, just files)
-export async function listDriveFolder(
-  folderId: string,
-  allowedFileIds?: string[] | null
-): Promise<DriveFile[]> {
-  const tree = await listDriveFolderTree(folderId, allowedFileIds);
-  const flat: DriveFile[] = [];
-  function flatten(items: DriveFile[]) {
-    for (const f of items) {
-      if (f.isFolder && f.children) {
-        flatten(f.children);
-      } else {
-        flat.push(f);
-      }
-    }
-  }
-  flatten(tree);
-  return flat;
-}
-
-// Tree structure (for documents page -- preserves folders)
-export async function listDriveFolderTree(
-  folderId: string,
-  allowedFileIds?: string[] | null,
-  pathPrefix?: string
-): Promise<DriveFile[]> {
+function driveAccess() {
   const drive = google.drive({ version: "v3", auth: getAuth() });
-
-  const res = await drive.files.list({
-    q: `'${folderId}' in parents and trashed = false`,
-    fields: "files(id, name, mimeType, size, modifiedTime)",
-    orderBy: "folder,name",
-  });
-
-  const items: DriveFile[] = [];
-
-  for (const f of res.data.files || []) {
-    const isFolder = f.mimeType === "application/vnd.google-apps.folder";
-    const path = pathPrefix ? `${pathPrefix}/${f.name!}` : f.name!;
-
-    if (isFolder) {
-      const children = await listDriveFolderTree(f.id!, allowedFileIds, path);
-      // Only include folder if it has visible children
-      if (!allowedFileIds || children.length > 0) {
-        items.push({
-          id: f.id!,
-          name: f.name!,
-          mimeType: f.mimeType!,
-          size: 0,
-          modifiedTime: f.modifiedTime!,
-          isFolder: true,
-          children,
-          path,
-        });
-      }
-    } else {
-      if (allowedFileIds && !allowedFileIds.includes(f.id!)) continue;
-      items.push({
-        id: f.id!,
-        name: f.name!,
-        mimeType: f.mimeType!,
-        size: parseInt(f.size || "0"),
-        modifiedTime: f.modifiedTime!,
-        isFolder: false,
-        path,
+  const transport: DriveTransport = {
+    async list(folderId, pageToken) {
+      if (!/^[A-Za-z0-9_-]+$/.test(folderId)) throw new Error("Invalid folder ID");
+      const res = await drive.files.list({
+        q: `'${folderId}' in parents and trashed = false`,
+        fields: `nextPageToken,files(${fields})`,
+        pageSize: 1000, pageToken, orderBy: "folder,name", supportsAllDrives: true, includeItemsFromAllDrives: true,
       });
-    }
-  }
-
-  return items;
+      return res.data;
+    },
+    async metadata(fileId, resourceKey) {
+      return (await drive.files.get({ fileId, fields, supportsAllDrives: true },
+        { headers: resourceHeaders(fileId, resourceKey) })).data;
+    },
+  };
+  return { drive, transport };
 }
 
-export async function getDriveFileStream(
-  fileId: string
-): Promise<{ stream: Readable; mimeType: string; name: string; size: number }> {
-  const drive = google.drive({ version: "v3", auth: getAuth() });
-
-  // Get metadata first
-  const meta = await drive.files.get({
-    fileId,
-    fields: "name, mimeType, size",
-  });
-
-  // Download content
-  const res = await drive.files.get(
-    { fileId, alt: "media" },
-    { responseType: "stream" }
-  );
-
-  return {
-    stream: res.data as unknown as Readable,
-    mimeType: meta.data.mimeType!,
-    name: meta.data.name!,
-    size: parseInt(meta.data.size || "0"),
-  };
+export async function listDriveFolderTree(folderId: string, allowedFileIds?: string[] | null, pathPrefix?: string) {
+  return readDriveTree(driveAccess().transport, folderId, allowedFileIds, pathPrefix);
 }
 
-export async function getDriveFileBuffer(
-  fileId: string
-): Promise<{ buffer: Buffer; mimeType: string; name: string }> {
-  const drive = google.drive({ version: "v3", auth: getAuth() });
+export async function listDriveFolder(folderId: string, allowedFileIds?: string[] | null) {
+  return flattenDriveTree(await listDriveFolderTree(folderId, allowedFileIds));
+}
 
-  const meta = await drive.files.get({
-    fileId,
-    fields: "name, mimeType",
-  });
+export async function getDriveFileStream(fileId: string): Promise<{ stream: Readable; mimeType: string; name: string; size: number }> {
+  const { drive, transport } = driveAccess();
+  const resolved = await resolveDriveReference(transport, await transport.metadata(fileId));
+  const res = await drive.files.get({ fileId: resolved.contentId, alt: "media", supportsAllDrives: true },
+    { responseType: "stream", headers: resourceHeaders(resolved.contentId, resolved.resourceKey) });
+  return { stream: res.data as unknown as Readable, mimeType: resolved.file.mimeType, name: resolved.file.name, size: resolved.file.size };
+}
 
-  const res = await drive.files.get(
-    { fileId, alt: "media" },
-    { responseType: "arraybuffer" }
-  );
-
-  return {
-    buffer: Buffer.from(res.data as ArrayBuffer),
-    mimeType: meta.data.mimeType!,
-    name: meta.data.name!,
-  };
+// Callers must first verify the reference ID belongs to the gated room selection.
+export async function getDriveFileBuffer(fileId: string): Promise<{ buffer: Buffer; mimeType: string; name: string }> {
+  const { drive, transport } = driveAccess();
+  const resolved = await resolveDriveReference(transport, await transport.metadata(fileId));
+  const res = await drive.files.get({ fileId: resolved.contentId, alt: "media", supportsAllDrives: true },
+    { responseType: "arraybuffer", headers: resourceHeaders(resolved.contentId, resolved.resourceKey) });
+  return { buffer: Buffer.from(res.data as ArrayBuffer), mimeType: resolved.file.mimeType, name: resolved.file.name };
 }
 
 export function getFileIcon(mimeType: string): string {

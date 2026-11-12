@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@/lib/auth";
 import { createRoomLink, listRoomLinks } from "@/lib/room";
-
-const DEFAULT_FOLDER_ID = "1GDls9NYWeAuk1y3UN4TyEhbgl7nFX-se";
+import { getDataRoomFolderId } from "@/lib/data-room-config";
+import { listDriveFolder } from "@/lib/drive";
+import { snapshotRoomSelection } from "@/lib/room-selection";
 
 export async function GET() {
   const auth = await getAuth();
@@ -26,13 +27,21 @@ export async function POST(req: NextRequest) {
     ? allowedEmails.map((e: string) => e.toLowerCase().trim()).filter((e: string) => e.includes("@"))
     : undefined;
 
+  const folderId = getDataRoomFolderId();
+  const available = await listDriveFolder(folderId);
+  let selected: string[];
+  try { selected = snapshotRoomSelection(available.map((f) => f.id), allowedFileIds, false); }
+  catch {
+    return NextResponse.json({ error: "Choose files from the current data room" }, { status: 400 });
+  }
+
   const link = await createRoomLink({
     label,
     createdById: auth.sub,
-    driveFolderId: DEFAULT_FOLDER_ID,
+    driveFolderId: folderId,
     expiresInDays,
     allowedEmails: emails,
-    allowedFileIds: allowedFileIds?.length ? allowedFileIds : undefined,
+    allowedFileIds: selected,
     allowDownload: allowDownload ?? true,
   });
 

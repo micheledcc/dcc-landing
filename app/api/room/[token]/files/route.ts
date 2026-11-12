@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRoomLink } from "@/lib/room";
 import { listDriveFolder } from "@/lib/drive";
+import { isRoomActive, roomCookieName, roomViewer, stringList } from "@/lib/room-access";
 
 export async function GET(
   _req: NextRequest,
@@ -9,15 +10,18 @@ export async function GET(
   const { token } = await params;
   const link = await getRoomLink(token);
 
-  if (!link || !link.is_active || new Date(link.expires_at) < new Date()) {
+  if (!isRoomActive(link)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const allowedFileIds =
-    typeof link.allowed_file_ids === "string"
-      ? JSON.parse(link.allowed_file_ids)
-      : link.allowed_file_ids;
+  if (!(await roomViewer(link, token, _req.cookies.get(roomCookieName(token))?.value)).allowed) {
+    return NextResponse.json({ error: "Email verification required" }, { status: 401 });
+  }
 
-  const files = await listDriveFolder(link.drive_folder_id, allowedFileIds);
-  return NextResponse.json({ files });
+  try {
+    const files = await listDriveFolder(link.drive_folder_id, stringList(link.allowed_file_ids));
+    return NextResponse.json({ files }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    return NextResponse.json({ error: "Files unavailable" }, { status: 503 });
+  }
 }

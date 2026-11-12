@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@/lib/auth";
 import { revokeRoomLink } from "@/lib/room";
 import { sql } from "@/lib/db";
+import { listDriveFolder } from "@/lib/drive";
+import { snapshotRoomSelection } from "@/lib/room-selection";
 
 export async function PATCH(
   req: NextRequest,
@@ -19,7 +21,15 @@ export async function PATCH(
   }
 
   if (body.allowed_file_ids !== undefined) {
-    const fileIds = body.allowed_file_ids === null ? null : JSON.stringify(body.allowed_file_ids);
+    const link = (await sql`SELECT drive_folder_id FROM room_links WHERE id = ${id}`).rows[0];
+    if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const files = await listDriveFolder(link.drive_folder_id);
+    let selected: string[];
+    try { selected = snapshotRoomSelection(files.map((f) => f.id), body.allowed_file_ids); }
+    catch {
+      return NextResponse.json({ error: "Choose files from this link's data room" }, { status: 400 });
+    }
+    const fileIds = JSON.stringify(selected);
     await sql`UPDATE room_links SET allowed_file_ids = ${fileIds} WHERE id = ${id}`;
   }
 

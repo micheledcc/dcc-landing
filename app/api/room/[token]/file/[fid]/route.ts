@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRoomLink } from "@/lib/room";
-import { getDriveFileBuffer } from "@/lib/drive";
+import { getDriveFileBuffer, listDriveFolder } from "@/lib/drive";
+import { roomCookieName, stringList } from "@/lib/room-access";
+import { serveRoomFile } from "@/lib/room-file-response";
 
 export async function GET(
   _req: NextRequest,
@@ -8,28 +10,19 @@ export async function GET(
 ) {
   const { token, fid } = await params;
   const link = await getRoomLink(token);
-
-  if (!link || !link.is_active || new Date(link.expires_at) < new Date()) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   try {
-    const { buffer, mimeType, name } = await getDriveFileBuffer(fid);
-
-    const isDownload = _req.nextUrl.searchParams.get("download") === "1";
-
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        "Content-Type": mimeType,
-        "Content-Length": buffer.length.toString(),
-        ...(isDownload
-          ? { "Content-Disposition": `attachment; filename="${encodeURIComponent(name)}"` }
-          : { "Content-Disposition": "inline" }),
-        "Cache-Control": "private, max-age=300",
-      },
+    return await serveRoomFile({
+      link, token, referenceId: fid,
+      cookie: _req.cookies.get(roomCookieName(token))?.value,
+      download: _req.nextUrl.searchParams.get("download") === "1",
+    }, {
+      list: () => listDriveFolder(link.drive_folder_id, stringList(link.allowed_file_ids)),
+      read: getDriveFileBuffer,
     });
-  } catch (e) {
-    console.error("Failed to fetch file:", e);
-    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  } catch {
+    // OAuth errors can contain credentials; never serialize/log the raw error.
+    return NextResponse.json({ error: "File unavailable" }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }
