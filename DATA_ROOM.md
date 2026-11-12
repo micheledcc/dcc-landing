@@ -64,3 +64,11 @@ worker URL after deployment.
    default room and error status. Do not run `db:setup`, `db:seed` or modify existing
    investor-link rows. Git publication and deployment outcomes are recorded in the
    DCC Cloud refresh status; never infer them merely from prepared source files.
+
+## Dashboard credential boundary
+
+Dashboard middleware and administrative APIs share the same strict administrator
+JWT verifier. Investor room/pipeline viewer tokens are never administrator sessions.
+New admin tokens have an explicit type; existing untyped owner/admin/member sessions
+remain compatible when their signed UUID identity, role, name and email are present.
+JWT_SECRET is mandatory and no development signing-secret fallback is accepted.

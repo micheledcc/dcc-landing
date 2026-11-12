@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
-
-const secret = () =>
-  new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret-change-me");
+import { verifyAdminToken } from "./lib/admin-token";
 
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get("dcc_auth")?.value;
@@ -11,12 +8,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  try {
-    await jwtVerify(token, secret());
-    return NextResponse.next();
-  } catch {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
+  if (await verifyAdminToken(token)) return NextResponse.next();
+  return NextResponse.redirect(new URL("/login", req.url));
 }
 
 export const config = {
